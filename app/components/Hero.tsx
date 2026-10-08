@@ -6,12 +6,20 @@ import NeuralField from "./NeuralField";
 import ScrambleText from "./ScrambleText";
 import Magnetic from "./Magnetic";
 
-function useTicker(fn: () => string, ms = 1000) {
-  const [v, setV] = useState(fn);
+/**
+ * SSR-safe ticker. The server and the client must agree on the FIRST paint, so
+ * we render a fixed placeholder and only start generating values after mount.
+ */
+function useTicker(fn: () => string, ms = 1000, initial = "—") {
+  const [v, setV] = useState(initial);
+
   useEffect(() => {
+    setV(fn());
     const id = setInterval(() => setV(fn()), ms);
     return () => clearInterval(id);
-  }, [fn, ms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ms]);
+
   return v;
 }
 
@@ -22,7 +30,7 @@ export default function Hero() {
   const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
   const blur = useTransform(scrollYProgress, [0, 1], ["blur(0px)", "blur(10px)"]);
 
-  const flow = useTicker(() => (2.1 + Math.random() * 0.5).toFixed(2), 900);
+  const flow = useTicker(() => (2.1 + Math.random() * 0.5).toFixed(2), 900, "2.34");
   const uptime = useTicker(
     () =>
       new Date().toLocaleTimeString("en-GB", {
@@ -31,7 +39,8 @@ export default function Hero() {
         second: "2-digit",
         timeZone: "Asia/Kolkata",
       }),
-    1000
+    1000,
+    "--:--:--"
   );
 
   return (
