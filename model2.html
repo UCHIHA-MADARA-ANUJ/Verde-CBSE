@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#d2d3d0">
+  <title>Verdant — The Connected Seedling</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+    :root {
+      --ink: #30372f;
+      --muted: #747a70;
+      --green: #557b43;
+      --line: rgba(48, 55, 47, .14);
+      --mono: "IBM Plex Mono", monospace;
+      --sans: "DM Sans", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background: #d2d3d0;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; }
+    button:focus-visible { outline: 2px solid #608c4a; outline-offset: 5px; }
+    button { -webkit-tap-highlight-color: transparent; }
+    ::selection { background: #b5cba4; }
+    #app { position: relative; width: 100%; height: 100%; height: 100dvh; overflow: hidden; }
+    #stage { position: absolute; inset: 0; }
+    #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+    #stage canvas:active { cursor: grabbing; }
+    .interface { z-index: 5; transition: opacity .85s ease; }
+    body:not(.ready) .interface { opacity: 0; pointer-events: none; }
+
+    .topbar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 94px;
+      padding: 0 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .topbar::after {
+      content: "";
+      position: absolute;
+      bottom: 0; left: 44px; right: 44px;
+      height: 1px;
+      background: var(--line);
+    }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .brand-mark { width: 29px; height: 32px; color: #426736; }
+    .brand-name { font-size: 24px; font-weight: 650; letter-spacing: -1.15px; }
+    .brand-note {
+      border-left: 1px solid var(--line);
+      padding-left: 25px;
+      margin-left: 17px;
+      color: #73796f;
+      font: 9px/1.7 var(--mono);
+      letter-spacing: 1.3px;
+    }
+    .top-meta { display: flex; align-items: center; gap: 32px; }
+    .study-number { font: 9px var(--mono); letter-spacing: 1.2px; color: var(--muted); }
+    .live-badge {
+      display: flex; align-items: center; gap: 9px;
+      font: 9px var(--mono);
+      letter-spacing: 1px;
+    }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #64834e; box-shadow: 0 0 0 4px rgba(100, 131, 78, .09); }
+
+    .intro {
+      position: absolute;
+      left: 46px; top: 29%;
+      width: 270px;
+      pointer-events: none;
+    }
+    .eyebrow { display: flex; align-items: center; gap: 10px; font: 9px/1.6 var(--mono); letter-spacing: 1.2px; color: #70796b; }
+    .eyebrow .index { color: #4b6a3b; }
+    .eyebrow .slash { color: #9ba092; }
+    h1 { font-weight: 450; font-size: 57px; letter-spacing: -2.9px; line-height: 1.04; margin: 23px 0 23px; }
+    .species { font-size: 13px; line-height: 1.9; color: #646d5e; margin: 0; }
+    .species em { font-style: normal; color: #818779; font-size: 12px; }
+    .specimen-stats { display: flex; gap: 31px; margin-top: 31px; padding-top: 19px; border-top: 1px solid var(--line); width: 214px; }
+    .stat-number { font-size: 22px; letter-spacing: -.7px; font-weight: 450; }
+    .stat-caption { display: block; margin-top: 5px; font: 8px var(--mono); color: #798170; letter-spacing: .9px; }
+
+    .telemetry {
+      position: absolute;
+      right: 46px; bottom: 127px;
+      width: 233px;
+      padding: 22px 22px 0;
+      border: 1px solid rgba(255, 255, 255, .48);
+      border-radius: 15px;
+      background: rgba(239, 241, 234, .57);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 8px 35px rgba(49, 58, 39, .035), inset 0 1px 0 rgba(255, 255, 255, .4);
+    }
+    .telemetry-heading { display: flex; align-items: center; justify-content: space-between; font: 9px var(--mono); letter-spacing: 1px; color: #737c69; }
+    .telemetry-heading svg { width: 15px; height: 15px; color: #688455; }
+    .reading { display: flex; align-items: flex-end; margin-top: 18px; gap: 6px; }
+    .reading .number { font-size: 61px; font-weight: 400; line-height: .95; letter-spacing: -3.5px; }
+    .reading .unit { font-size: 23px; padding-bottom: 5px; color: #818976; font-weight: 400; }
+    .optimal { font: 8px var(--mono); color: #527644; letter-spacing: .5px; background: rgba(119, 156, 91, .10); border: 1px solid rgba(103, 139, 80, .12); border-radius: 5px; padding: 6px 7px; margin: 0 0 7px auto; }
+    .meter { height: 3px; border-radius: 3px; margin-top: 20px; background: rgba(87, 114, 67, .14); position: relative; overflow: visible; }
+    .meter-fill { height: 100%; width: 68%; border-radius: 3px; background: #749460; position: relative; transition: width 1.4s ease; }
+    .meter-fill::after { content: ""; position: absolute; right: -3px; top: -2px; width: 7px; height: 7px; border-radius: 50%; background: #61834c; box-shadow: 0 0 0 3px #e7eade; }
+    .meter-labels { display: flex; justify-content: space-between; margin-top: 9px; font: 8px var(--mono); color: #909786; }
+    .sensor-legend { display: flex; align-items: center; gap: 19px; margin: 19px 0 21px; }
+    .sensor-legend span { display: flex; align-items: center; gap: 7px; font-size: 10px; color: #737d68; }
+    .led-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .led-dot.green { background: #6b9c4e; box-shadow: 0 0 5px rgba(98, 167, 61, .3); }
+    .led-dot.blue { background: #5b9dcc; box-shadow: 0 0 5px rgba(77, 151, 210, .3); animation: signal 2.7s ease-in-out infinite; }
+    @keyframes signal { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+    .inspect-link {
+      width: calc(100% + 44px); margin-left: -22px;
+      border: 0; border-top: 1px solid rgba(83, 105, 66, .12);
+      background: transparent;
+      padding: 15px 21px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; font-size: 11px;
+      border-radius: 0 0 15px 15px;
+      transition: background .2s;
+    }
+    .inspect-link:hover { background: rgba(255, 255, 255, .3); }
+    .inspect-link svg { width: 14px; height: 14px; }
+
+    .viewer-tools {
+      position: absolute;
+      bottom: 29px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 3px;
+      padding: 6px;
+      border: 1px solid rgba(255, 255, 255, .65);
+      border-radius: 15px;
+      background: rgba(245, 246, 241, .79);
+      box-shadow: 0 6px 25px rgba(40, 50, 34, .07), inset 0 1px 0 rgba(255, 255, 255, .5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .tool {
+      border: 0; background: transparent;
+      height: 41px; padding: 0 14px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      white-space: nowrap; cursor: pointer;
+      font-size: 11px; font-weight: 500; color: #727b68;
+      transition: background .2s, color .2s;
+    }
+    .tool svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .tool:hover { background: rgba(255, 255, 255, .64); color: #3d5133; }
+    .tool.active { background: #e3e9dd; color: #4f6c3d; }
+    .tool.square { width: 41px; padding: 0; }
+    .tool-divider { height: 21px; width: 1px; background: var(--line); margin: 0 4px; }
+
+    .gesture-hint { position: absolute; bottom: 41px; left: 46px; display: flex; gap: 12px; align-items: center; color: #868d7e; }
+    .gesture-hint svg { width: 17px; height: 24px; }
+    .gesture-hint span { font: 8px/1.8 var(--mono); letter-spacing: .7px; }
+    .render-note { position: absolute; bottom: 40px; right: 46px; text-align: right; font: 8px/1.9 var(--mono); letter-spacing: 1px; color: #868d7e; }
+    .mobile-hint { display: none; }
+
+    #annotations { position: absolute; inset: 0; pointer-events: none; z-index: 2; transition: opacity .35s; }
+    #annotations.hidden { opacity: 0; }
+    #annotations.hidden .callout { pointer-events: none; }
+    body:not(.ready) #annotations { opacity: 0; }
+    .hotspot { position: absolute; top: 0; left: 0; }
+    .callout {
+      display: flex; align-items: center; white-space: nowrap;
+      transform: translate(-4px, -50%);
+      border: 0; padding: 0; margin: 0; background: none;
+      text-align: left;
+    }
+    button.callout { pointer-events: auto; cursor: pointer; }
+    .hotspot.flip .callout { flex-direction: row-reverse; transform: translate(calc(-100% + 4px), -50%); }
+    .pin { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #eef2e7; border: 1px solid #6b8358; box-shadow: 0 0 0 4px rgba(237, 242, 229, .16); }
+    .leader { width: 43px; height: 1px; flex: 0 0 auto; background: rgba(83, 105, 65, .32); }
+    .annotation-text { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .4); background: rgba(236, 239, 231, .69); border-radius: 7px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .annotation-name { font-size: 10px; color: #4e5e43; font-weight: 500; }
+    .annotation-detail { font: 8px var(--mono); letter-spacing: .2px; color: #87917c; }
+    button.callout:hover .annotation-text { background: rgba(251, 252, 247, .9); }
+    .annotation-arrow { display: inline-block; margin-left: 10px; color: #809573; }
+
+    #loading {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #d2d3d0;
+      transition: opacity .8s ease, visibility .8s;
+    }
+    body.ready #loading { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-ring { width: 37px; height: 37px; border-radius: 50%; border: 1px solid rgba(86, 114, 65, .16); border-top-color: #64814f; animation: spin 1.2s linear infinite; margin-bottom: 25px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-title { font-size: 14px; letter-spacing: -.2px; margin: 0; }
+    .loading-caption { font: 8px var(--mono); letter-spacing: 1.6px; color: #8a9181; margin-top: 13px; text-align: center; line-height: 2; }
+    .loading-caption button { border: 1px solid #a8b29d; background: transparent; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+
+    @media (max-width: 1150px) {
+      .topbar { padding: 0 28px; }
+      .topbar::after { left: 28px; right: 28px; }
+      .brand-note { display: none; }
+      .intro { left: 29px; width: 218px; top: 28%; }
+      h1 { font-size: 47px; letter-spacing: -2.3px; }
+      .eyebrow { font-size: 8px; letter-spacing: .6px; gap: 7px; }
+      .telemetry { right: 29px; width: 211px; padding: 19px 18px 0; }
+      .reading .number { font-size: 54px; }
+      .optimal { font-size: 7px; padding: 5px; }
+      .inspect-link { width: calc(100% + 36px); margin-left: -18px; padding: 15px 18px; }
+      .gesture-hint { left: 29px; }
+      .render-note { right: 29px; font-size: 7px; }
+    }
+    @media (max-width: 950px) {
+      .gesture-hint, .render-note { display: none; }
+      .telemetry { right: 24px; width: 189px; bottom: 119px; }
+      .telemetry-heading { font-size: 8px; letter-spacing: .5px; }
+      .reading .number { font-size: 46px; }
+      .reading .unit { font-size: 18px; }
+      .optimal { font-size: 6px; }
+      .intro { left: 25px; width: 190px; }
+      h1 { font-size: 40px; }
+      .specimen-stats { width: 173px; gap: 26px; }
+      .species { font-size: 12px; }
+      .stat-caption { font-size: 7px; }
+    }
+    @media (max-width: 760px) {
+      .topbar { height: 75px; padding: 0 23px; }
+      .topbar::after { left: 23px; right: 23px; }
+      .brand-mark { width: 25px; height: 28px; }
+      .brand-name { font-size: 22px; }
+      .brand { gap: 9px; }
+      .study-number { display: none; }
+      .live-badge { font-size: 7px; letter-spacing: .6px; gap: 7px; }
+      #stage { top: 109px; bottom: 90px; }
+      .intro { top: 99px; left: 25px; width: calc(100% - 50px); }
+      .eyebrow { font-size: 7px; letter-spacing: 1.1px; }
+      h1 { font-size: 36px; letter-spacing: -1.6px; margin: 12px 0 8px; }
+      h1 br { display: none; }
+      h1 br::after { content: " "; }
+      .species { font-size: 10px; line-height: 1.7; }
+      .species br { display: none; }
+      .species em { font-size: 10px; margin-left: 10px; }
+      .specimen-stats, .telemetry, #canopy-hotspot { display: none; }
+      .viewer-tools { bottom: 24px; border-radius: 14px; padding: 5px; }
+      .tool { height: 42px; padding: 0 12px; font-size: 10px; gap: 6px; }
+      .tool svg { width: 16px; height: 16px; }
+      .tool.square { width: 35px; }
+      .tool-divider { margin: 0 1px; }
+      .mobile-hint { display: block; position: absolute; left: 0; right: 0; bottom: 90px; text-align: center; font: 7px var(--mono); letter-spacing: 1px; color: #8a927f; pointer-events: none; }
+      .leader { width: 24px; }
+      .annotation-text { padding: 8px 9px; gap: 4px; }
+      .annotation-name { font-size: 9px; }
+      .annotation-detail { font-size: 7px; }
+      .annotation-arrow { margin-left: 6px; }
+    }
+    @media (max-width: 365px) {
+      h1 { font-size: 31px; }
+      .tool { padding: 0 10px; }
+      .tool span { font-size: 9px; }
+      .live-badge { font-size: 6px; }
+    }
+    @media (max-height: 620px) and (min-width: 761px) {
+      .topbar { height: 69px; }
+      .intro { top: 23%; }
+      h1 { font-size: 38px; margin: 15px 0; }
+      .specimen-stats { margin-top: 18px; padding-top: 12px; }
+      .telemetry { bottom: 99px; transform: scale(.86); transform-origin: bottom right; }
+      .viewer-tools { bottom: 18px; }
+      .gesture-hint, .render-note { bottom: 30px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="stage" aria-label="Interactive 3D model of a four-leaf lettuce seedling in a white hydroponic pod with a two-prong moisture probe and a green circuit board.">
+      <div id="annotations">
+        <div class="hotspot" id="canopy-hotspot">
+          <div class="callout">
+            <span class="pin"></span><span class="leader"></span>
+            <span class="annotation-text">
+              <span class="annotation-name" id="canopy-name">Living canopy</span>
+              <span class="annotation-detail" id="canopy-detail">04 broad, fresh leaves</span>
+            </span>
+          </div>
+        </div>
+        <div class="hotspot" id="sensor-hotspot">
+          <button class="callout" id="sensor-hotspot-button" aria-label="Inspect the soil moisture sensor">
+            <span class="pin"></span><span class="leader"></span>
+            <span class="annotation-text">
+              <span class="annotation-name">Soil intelligence <span class="annotation-arrow">↗</span></span>
+              <span class="annotation-detail">68% · optimal moisture</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <header class="topbar interface">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 36" fill="none" aria-hidden="true">
+          <path d="M16 32V17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M15.6 23.1C6.5 22.8 2.3 17.7 3.3 10.2c7.9-.1 13 4.2 12.3 12.9Z" fill="currentColor"/>
+          <path d="M17 17.1C15.7 8.9 20.3 3.5 28.4 3.9c.8 7.5-3.2 12.4-11.4 13.2Z" fill="currentColor"/>
+          <path d="m8.5 15.7 7.1 7.4m1.2-5.9 6.1-7.6" stroke="#d2d3d0" stroke-opacity=".5" stroke-width=".8"/>
+        </svg>
+        <span class="brand-name">verde</span>
+        <span class="brand-note">SMALL SYSTEMS.<br>LIVING THINGS.</span>
+      </div>
+      <div class="top-meta">
+        <span class="study-number">OBJECT STUDY / 001</span>
+        <span class="live-badge"><span class="live-dot"></span>INTERACTIVE SPECIMEN</span>
+      </div>
+    </header>
+
+    <section class="intro interface" aria-label="Specimen information">
+      <div class="eyebrow"><span class="index" id="view-index">01</span><span class="slash">/</span><span id="view-category">THE CONNECTED SEEDLING</span></div>
+      <h1 id="view-title">Anatomy<br> of growth.</h1>
+      <p class="species" id="view-species">Butterhead lettuce<br><em>Lactuca sativa</em></p>
+      <div class="specimen-stats">
+        <div><span class="stat-number" id="stat-a">12</span><span class="stat-caption" id="stat-a-label">DAYS OF GROWTH</span></div>
+        <div><span class="stat-number" id="stat-b">04</span><span class="stat-caption" id="stat-b-label">TRUE LEAVES</span></div>
+      </div>
+    </section>
+
+    <aside class="telemetry interface" aria-label="Simulated sensor reading">
+      <div class="telemetry-heading">
+        <span>ROOT-ZONE MOISTURE</span>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.6s-5.1 5.6-5.1 9a5.1 5.1 0 0 0 10.2 0c0-3.4-5.1-9-5.1-9Z" stroke="currentColor" stroke-width="1.2"/><path d="M7.3 11.4a2.9 2.9 0 0 0 2.8 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="reading"><span class="number">68</span><span class="unit">%</span><span class="optimal">OPTIMAL</span></div>
+      <div class="meter"><div class="meter-fill" id="moisture-fill"></div></div>
+      <div class="meter-labels"><span>DRY</span><span>SATURATED</span></div>
+      <div class="sensor-legend">
+        <span><i class="led-dot green"></i>Power</span>
+        <span><i class="led-dot blue"></i>Signal</span>
+      </div>
+      <button class="inspect-link" id="inspect-link">
+        <span id="inspect-link-text">A closer look at the sensor</span>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 15 15 5M5.5 5H15v9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </aside>
+
+    <div class="gesture-hint interface">
+      <svg viewBox="0 0 20 28" fill="none" aria-hidden="true"><rect x="3.5" y="1.5" width="13" height="22" rx="6.5" stroke="currentColor"/><path d="M10 6v5" stroke="currentColor" stroke-linecap="round"/><path d="m7.5 26 2.5 1 2.5-1" stroke="currentColor" stroke-width=".7"/></svg>
+      <span>DRAG TO ORBIT<br>SCROLL TO EXPLORE</span>
+    </div>
+
+    <div class="viewer-tools interface" role="toolbar" aria-label="3D viewer controls">
+      <button class="tool" id="rotate-button" aria-pressed="false" title="Toggle automatic orbit (Space)">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><ellipse cx="12" cy="12" rx="10" ry="4.7" transform="rotate(-25 12 12)" stroke="currentColor" stroke-width="1.3"/><path d="m17 3.4 3.5 1.3-.9 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span>Auto orbit</span>
+      </button>
+      <button class="tool active" id="details-button" aria-pressed="true" title="Toggle annotations (D)">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6.5" cy="16.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="m8.5 14.5 6-7H21M15 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span>Details</span>
+      </button>
+      <button class="tool" id="sensor-button" aria-pressed="false" title="Switch between seedling and sensor views (S)">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="9.5" width="5" height="5" rx=".7" stroke="currentColor" stroke-width="1.2"/><path d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <span id="sensor-button-text">Sensor</span>
+      </button>
+      <div class="tool-divider"></div>
+      <button class="tool square" id="reset-button" title="Reset view (R)" aria-label="Reset camera to the whole seedling">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 8a8 8 0 1 1-.7 7M5 3v5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="render-note interface">STUDIO LIGHT / 01<br>REAL-TIME 3D · SENSOR SIMULATION</div>
+    <div class="mobile-hint interface">DRAG TO ORBIT · PINCH TO EXPLORE</div>
+
+    <div id="loading" role="status" aria-live="polite">
+      <div class="loader-ring"></div>
+      <p class="loading-title">A little life, in detail.</p>
+      <p class="loading-caption">PREPARING THE STUDIO</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+    const $ = id => document.getElementById(id);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    try {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      initializeStudio();
+    } catch (error) {
+      console.error(error);
+      document.querySelector('.loader-ring').style.display = 'none';
+      document.querySelector('.loading-title').textContent = 'The studio couldn’t open.';
+      document.querySelector('.loading-caption').innerHTML = 'PLEASE ENABLE WEBGL AND CHECK YOUR CONNECTION.<br><button id="retry">Try again</button>';
+      $('retry').addEventListener('click', () => location.reload());
+    }
+
+    function initializeStudio() {
+      const stage = $('stage');
+      const scene = new THREE.Scene();
+      const background = new THREE.Color('#d2d3d0');
+      scene.background = background;
+      scene.fog = new THREE.Fog(background, 15, 38);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.innerWidth < 761 ? 1.75 : 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.06;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.setClearColor(background, 1);
+      stage.prepend(renderer.domElement);
+
+      const camera = new THREE.PerspectiveCamera(32, 1, .04, 70);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = .075;
+      controls.enablePan = false;
+      controls.rotateSpeed = .58;
+      controls.zoomSpeed = .72;
+      controls.minDistance = 2.15;
+      controls.maxDistance = 14;
+      controls.minPolarAngle = .24;
+      controls.maxPolarAngle = Math.PI * .485;
+      controls.autoRotateSpeed = .55;
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const room = new RoomEnvironment();
+      const environment = pmrem.fromScene(room, .045);
+      scene.environment = environment.texture;
+      if (room.dispose) room.dispose();
+      pmrem.dispose();
+
+      scene.add(new THREE.HemisphereLight('#f5f7f0', '#8d9688', .75));
+
+      const key = new THREE.DirectionalLight('#fffaf2', 3.05);
+      key.position.set(-3.6, 6.7, 4.5);
+      key.target.position.set(0, 1.25, 0);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.left = -3.7;
+      key.shadow.camera.right = 3.7;
+      key.shadow.camera.top = 4;
+      key.shadow.camera.bottom = -4;
+      key.shadow.camera.near = .5;
+      key.shadow.camera.far = 15;
+      key.shadow.normalBias = .012;
+      key.shadow.bias = -.00015;
+      key.shadow.radius = 4;
+      scene.add(key, key.target);
+
+      const fill = new THREE.DirectionalLight('#edf3ff', .9);
+      fill.position.set(4.5, 3.5, 3.5);
+      scene.add(fill);
+      const rimLight = new THREE.DirectionalLight('#f9fff1', 1.65);
+      rimLight.position.set(1, 5, -4);
+      scene.add(rimLight);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(120, 120),
+        new THREE.MeshStandardMaterial({ color: '#c3c5c2', roughness: 1, metalness: 0, envMapIntensity: .25, dithering: true })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -.008;
+      scene.add(floor);
+
+      const assembly = new THREE.Group();
+      scene.add(assembly);
+      const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      const Y = new THREE.Vector3(0, 1, 0);
+
+      let seed = 18453;
+      function random() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      }
+      const range = (a, b) => a + random() * (b - a);
+
+      function canvasTexture(canvas, color = true) {
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        texture.anisotropy = maxAnisotropy;
+        return texture;
+      }
+
+      function grainTexture() {
+        const c = document.createElement('canvas');
+        c.width = c.height = 128;
+        const ctx = c.getContext('2d');
+        const image = ctx.createImageData(128, 128);
+        for (let i = 0; i < image.data.length; i += 4) {
+          const v = 115 + random() * 40;
+          image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+          image.data[i + 3] = 255;
+        }
+        ctx.putImageData(image, 0, 0);
+        const texture = canvasTexture(c, false);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(12, 9);
+        return texture;
+      }
+
+      const fineGrain = grainTexture();
+      const whitePlastic = new THREE.MeshPhysicalMaterial({
+        color: '#f1f2ee', roughness: .61, metalness: 0,
+        clearcoat: .065, clearcoatRoughness: .75,
+        bumpMap: fineGrain, bumpScale: .00065,
+        envMapIntensity: .52, dithering: true
+      });
+      const clipPlastic = new THREE.MeshStandardMaterial({ color: '#e7e9e1', roughness: .53, envMapIntensity: .6 });
+      const steel = new THREE.MeshPhysicalMaterial({ color: '#bcc5c6', roughness: .23, metalness: 1, envMapIntensity: 1.15 });
+      const solder = new THREE.MeshStandardMaterial({ color: '#c7ceca', roughness: .3, metalness: .93, envMapIntensity: .95 });
+      const gold = new THREE.MeshStandardMaterial({ color: '#b79a50', roughness: .35, metalness: .85, envMapIntensity: .85 });
+      const blackPlastic = new THREE.MeshStandardMaterial({ color: '#171e1d', roughness: .64, envMapIntensity: .4 });
+
+      function roundedBox(w, h, d, radius, material, parent, x = 0, y = 0, z = 0) {
+        const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, radius), material);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        if (parent) parent.add(mesh);
+        return mesh;
+      }
+
+      function taperedTube(curve, segments, r0, r1, radial = 7) {
+        const geometry = new THREE.TubeGeometry(curve, segments, 1, radial, false);
+        const p = geometry.attributes.position;
+        const v = new THREE.Vector3();
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const center = curve.getPointAt(t);
+          const radius = r1 + (r0 - r1) * Math.pow(1 - t, .92);
+          for (let j = 0; j <= radial; j++) {
+            const index = i * (radial + 1) + j;
+            v.fromBufferAttribute(p, index).sub(center).multiplyScalar(radius).add(center);
+            p.setXYZ(index, v.x, v.y, v.z);
+          }
+        }
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      // Rounded, hollow injection-molded pod.
+      const profile = [
+        [0, .027], [.695, .027], [.735, .037], [.766, .069], [.781, .12],
+        [.783, .23], [.786, 1.44], [.790, 1.518], [.799, 1.569],
+        [.794, 1.603], [.779, 1.626], [.752, 1.635], [.728, 1.63],
+        [.711, 1.614], [.699, 1.589], [.698, 1.467]
+      ].map(p => new THREE.Vector2(...p));
+      const pod = new THREE.Mesh(new THREE.LatheGeometry(profile, 160), whitePlastic);
+      pod.castShadow = pod.receiveShadow = true;
+      assembly.add(pod);
+
+      const seam = new THREE.Mesh(
+        new THREE.TorusGeometry(.771, .004, 6, 128),
+        new THREE.MeshStandardMaterial({ color: '#d5d9d0', roughness: .8 })
+      );
+      seam.rotation.x = Math.PI / 2;
+      seam.position.y = .105;
+      assembly.add(seam);
+
+      const innerLip = new THREE.Mesh(new THREE.TorusGeometry(.704, .0045, 6, 128), whitePlastic);
+      innerLip.rotation.x = Math.PI / 2;
+      innerLip.position.y = 1.588;
+      assembly.add(innerLip);
+
+      function addPodPrint() {
+        const c = document.createElement('canvas');
+        c.width = 1024; c.height = 256;
+        const ctx = c.getContext('2d');
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#89917f';
+        ctx.font = '500 87px "DM Sans", sans-serif';
+        ctx.fillText('verde', 512, 120);
+        ctx.font = '25px "IBM Plex Mono", monospace';
+        ctx.fillStyle = '#979e8e';
+        ctx.fillText('LIVING SYSTEM / 001', 512, 184);
+
+        const w = .59, h = .15, r = .789, centerAngle = .10;
+        const positions = [], uvs = [], indices = [];
+        for (let j = 0; j < 2; j++) {
+          for (let i = 0; i <= 40; i++) {
+            const u = i / 40;
+            const angle = centerAngle + (u - .5) * w / r;
+            positions.push(Math.sin(angle) * r, .39 + (j - .5) * h, Math.cos(angle) * r);
+            uvs.push(u, j);
+          }
+        }
+        for (let i = 0; i < 40; i++) indices.push(i, i + 1, i + 41, i + 1, i + 42, i + 41);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        const print = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+          map: canvasTexture(c), transparent: true, depthWrite: false, roughness: .85,
+          opacity: .62, polygonOffset: true, polygonOffsetFactor: -1, envMapIntensity: .35
+        }));
+        assembly.add(print);
+      }
+      addPodPrint();
+
+      // Moist peat puck: displaced surface, organic fragments and small mineral flecks.
+      function soilTextures() {
+        const c = document.createElement('canvas');
+        const b = document.createElement('canvas');
+        c.width = c.height = b.width = b.height = 512;
+        const ctx = c.getContext('2d'), bx = b.getContext('2d');
+        const image = ctx.createImageData(512, 512);
+        const bump = bx.createImageData(512, 512);
+        for (let y = 0; y < 512; y++) {
+          for (let x = 0; x < 512; x++) {
+            const i = (y * 512 + x) * 4;
+            const grain = random();
+            const coarse = Math.sin(x * .053 + Math.sin(y * .032) * 2) * Math.sin(y * .079) * 5;
+            image.data[i] = 29 + grain * 18 + coarse;
+            image.data[i + 1] = 23 + grain * 14 + coarse * .8;
+            image.data[i + 2] = 17 + grain * 11 + coarse * .6;
+            image.data[i + 3] = 255;
+            const v = 75 + grain * 105 + coarse * 3;
+            bump.data[i] = bump.data[i + 1] = bump.data[i + 2] = v;
+            bump.data[i + 3] = 255;
+          }
+        }
+        ctx.putImageData(image, 0, 0);
+        bx.putImageData(bump, 0, 0);
+        ctx.globalAlpha = .35;
+        for (let i = 0; i < 550; i++) {
+          ctx.strokeStyle = random() > .5 ? '#766149' : '#181b12';
+          const x = range(0, 512), y = range(0, 512);
+          ctx.lineWidth = range(.5, 1.4);
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + range(-7, 7), y + range(2, 12));
+          ctx.stroke();
+        }
+        return { map: canvasTexture(c), bump: canvasTexture(b, false) };
+      }
+
+      const soilMaps = soilTextures();
+      const soilMaterial = new THREE.MeshStandardMaterial({
+        map: soilMaps.map, bumpMap: soilMaps.bump, bumpScale: .013,
+        roughness: .85, envMapIntensity: .35
+      });
+      const soilSide = new THREE.Mesh(new THREE.CylinderGeometry(.693, .69, .12, 112, 1, true), soilMaterial);
+      soilSide.position.y = 1.509;
+      soilSide.castShadow = soilSide.receiveShadow = true;
+      assembly.add(soilSide);
+
+      function soilHeight(x, z) {
+        return 1.574 + .005 * Math.sin(x * 26 + z * 8) * Math.cos(z * 29 - x * 4)
+          + .003 * Math.sin(x * 61 - z * 44) - .010 * Math.exp(-(x * x + z * z) / .035);
+      }
+
+      const soilPositions = [], soilUVs = [], soilIndices = [];
+      const soilRings = 25, soilSegments = 128;
+      for (let j = 0; j <= soilRings; j++) {
+        const r = .692 * j / soilRings;
+        for (let i = 0; i <= soilSegments; i++) {
+          const a = i / soilSegments * Math.PI * 2;
+          const x = Math.cos(a) * r, z = Math.sin(a) * r;
+          soilPositions.push(x, soilHeight(x, z), z);
+          soilUVs.push(.5 + x / 1.384, .5 + z / 1.384);
+        }
+      }
+      for (let j = 0; j < soilRings; j++) {
+        for (let i = 0; i < soilSegments; i++) {
+          const a = j * (soilSegments + 1) + i, c = a + soilSegments + 1;
+          soilIndices.push(a, a + 1, c, a + 1, c + 1, c);
+        }
+      }
+      const soilGeometry = new THREE.BufferGeometry();
+      soilGeometry.setAttribute('position', new THREE.Float32BufferAttribute(soilPositions, 3));
+      soilGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(soilUVs, 2));
+      soilGeometry.setIndex(soilIndices);
+      soilGeometry.computeVertexNormals();
+      const soilTop = new THREE.Mesh(soilGeometry, soilMaterial);
+      soilTop.receiveShadow = true;
+      assembly.add(soilTop);
+
+      const clumps = new THREE.InstancedMesh(
+        new THREE.DodecahedronGeometry(1, 0),
+        new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .84, envMapIntensity: .35 }),
+        440
+      );
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+      for (let i = 0; i < 440; i++) {
+        const a = range(0, Math.PI * 2), r = .664 * Math.sqrt(range(.012, 1));
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const size = .007 + Math.pow(random(), 2) * .025;
+        dummy.position.set(x, soilHeight(x, z) + size * .21, z);
+        dummy.rotation.set(range(0, 3), range(0, 6), range(0, 3));
+        dummy.scale.set(size * range(.8, 1.4), size * range(.38, .7), size * range(.7, 1.2));
+        dummy.updateMatrix();
+        clumps.setMatrixAt(i, dummy.matrix);
+        color.setHSL(range(.055, .10), range(.16, .30), range(.075, .14));
+        clumps.setColorAt(i, color);
+      }
+      clumps.castShadow = clumps.receiveShadow = true;
+      assembly.add(clumps);
+
+      const minerals = new THREE.InstancedMesh(
+        new THREE.DodecahedronGeometry(1, 0),
+        new THREE.MeshStandardMaterial({ color: '#a39b7d', roughness: .98 }),
+        22
+      );
+      for (let i = 0; i < 22; i++) {
+        const a = range(0, Math.PI * 2), r = .64 * Math.sqrt(random());
+        const x = r * Math.cos(a), z = r * Math.sin(a), size = range(.004, .009);
+        dummy.position.set(x, soilHeight(x, z) + .004, z);
+        dummy.rotation.set(random() * 4, random() * 4, random() * 4);
+        dummy.scale.set(size, size * .7, size * 1.2);
+        dummy.updateMatrix();
+        minerals.setMatrixAt(i, dummy.matrix);
+      }
+      minerals.receiveShadow = true;
+      assembly.add(minerals);
+
+      const fibers = [];
+      for (let i = 0; i < 32; i++) {
+        const a = range(0, 6.28), r = .64 * Math.sqrt(random());
+        const x = Math.cos(a) * r, z = Math.sin(a) * r, angle = range(0, 6.28), length = range(.018, .057);
+        const points = [];
+        for (let j = 0; j < 4; j++) {
+          const xx = x + Math.cos(angle) * length * j / 3;
+          const zz = z + Math.sin(angle) * length * j / 3;
+          points.push(new THREE.Vector3(xx, soilHeight(xx, zz) + .007 + Math.sin(j / 3 * Math.PI) * .004, zz));
+        }
+        fibers.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 7, .0009, 3, false));
+      }
+      const fiberMesh = new THREE.Mesh(mergeGeometries(fibers), new THREE.MeshStandardMaterial({ color: '#6b5b42', roughness: .95 }));
+      assembly.add(fiberMesh);
+      fibers.forEach(g => g.dispose());
+
+      // Leaf albedo and bump maps include fine mottling and branching venation.
+      function leafTextures() {
+        const w = 512, h = 1024;
+        const c = document.createElement('canvas'), b = document.createElement('canvas');
+        c.width = b.width = w; c.height = b.height = h;
+        const ctx = c.getContext('2d'), bx = b.getContext('2d');
+        const image = ctx.createImageData(w, h), bump = bx.createImageData(w, h);
+        for (let y = 0; y < h; y++) {
+          const t = 1 - y / h;
+          for (let x = 0; x < w; x++) {
+            const s = (x / w - .5) * 2, i = (y * w + x) * 4;
+            const broad = Math.sin(x * .044 + Math.sin(y * .015) * 2.3) * Math.sin(y * .031 + x * .006);
+            const fine = random() - .5;
+            const center = Math.exp(-s * s * 37) * (1 - t) * 14;
+            const m = broad * 8 + fine * 8;
+            image.data[i] = 66 + m + center;
+            image.data[i + 1] = 142 + m * 1.24 + center;
+            image.data[i + 2] = 25 + m * .5 + center * .55;
+            image.data[i + 3] = 255;
+            const v = 121 + broad * 14 + fine * 26;
+            bump.data[i] = bump.data[i + 1] = bump.data[i + 2] = v;
+            bump.data[i + 3] = 255;
+          }
+        }
+        ctx.putImageData(image, 0, 0);
+        bx.putImageData(bump, 0, 0);
+
+        function veinPath(context, points, stroke, width, alpha) {
+          context.globalAlpha = alpha;
+          context.strokeStyle = stroke;
+          context.lineWidth = width;
+          context.lineCap = context.lineJoin = 'round';
+          context.beginPath();
+          points.forEach((p, i) => {
+            const x = (.5 + p[0] * .5) * w, y = (1 - p[1]) * h;
+            if (!i) context.moveTo(x, y); else context.lineTo(x, y);
+          });
+          context.stroke();
+          context.globalAlpha = 1;
+        }
+
+        for (let n = 0; n < 8; n++) {
+          const base = .12 + n * .105;
+          for (const side of [-1, 1]) {
+            const points = [];
+            for (let j = 0; j <= 24; j++) {
+              const u = j / 24;
+              points.push([side * .94 * u, Math.min(.987, base + .145 * Math.pow(u, .76))]);
+            }
+            veinPath(ctx, points, '#a3c76c', 3.4 - n * .21, .36);
+            veinPath(ctx, points, '#badc83', 1.05, .28);
+            veinPath(bx, points, '#dbdbdb', 3, .5);
+
+            for (let branch = 1; branch <= 5; branch++) {
+              const a = branch / 6;
+              const startS = side * .94 * a;
+              const startT = base + .145 * Math.pow(a, .76);
+              const minor = [];
+              for (let j = 0; j <= 9; j++) {
+                const u = j / 9;
+                minor.push([
+                  startS + side * .12 * u,
+                  Math.min(.989, startT + (.048 + .035 * (1 - a)) * u)
+                ]);
+              }
+              veinPath(ctx, minor, '#a7c97c', .85, .27);
+              veinPath(bx, minor, '#cfcfcf', .8, .25);
+            }
+          }
+        }
+
+        // Delicate reticulate vein network.
+        ctx.strokeStyle = '#adc77c';
+        ctx.lineWidth = .6;
+        ctx.globalAlpha = .13;
+        const grid = [];
+        for (let y = 0; y < 58; y++) {
+          const row = [];
+          for (let x = 0; x < 25; x++) row.push([x * w / 24 + range(-7, 7), y * h / 57 + range(-7, 7)]);
+          grid.push(row);
+        }
+        for (let y = 0; y < 57; y++) {
+          for (let x = 0; x < 24; x++) {
+            const p = grid[y][x];
+            ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...grid[y + 1][x]); ctx.lineTo(...grid[y + 1][x + 1]); ctx.stroke();
+            if ((x + y) % 2 === 0) {
+              ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...grid[y][x + 1]); ctx.stroke();
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+        for (let n = 0; n < 24; n++) {
+          const t0 = n / 24, t1 = (n + 1) / 24;
+          veinPath(ctx, [[0, t0], [0, t1]], '#b3ce79', 7.5 * (1 - t0) + .6, .6);
+          veinPath(bx, [[0, t0], [0, t1]], '#ebebeb', 7 * (1 - t0) + 1, .7);
+        }
+        return { map: canvasTexture(c), bump: canvasTexture(b, false) };
+      }
+
+      const leafMaps = leafTextures();
+      const leafMaterial = new THREE.MeshPhysicalMaterial({
+        color: '#ffffff', map: leafMaps.map, bumpMap: leafMaps.bump, bumpScale: .006,
+        vertexColors: true, side: THREE.DoubleSide,
+        roughness: .47, metalness: 0,
+        sheen: .28, sheenColor: new THREE.Color('#b2d977'), sheenRoughness: .69,
+        clearcoat: .055, clearcoatRoughness: .6,
+        emissive: '#203c07', emissiveIntensity: .14,
+        envMapIntensity: .48, dithering: true
+      });
+      leafMaterial.shadowSide = THREE.DoubleSide;
+      const veinMaterial = new THREE.MeshStandardMaterial({ color: '#85b64d', roughness: .6, envMapIntensity: .45 });
+      const stemMaterial = new THREE.MeshPhysicalMaterial({
+        color: '#a3c76b', roughness: .6, metalness: 0,
+        emissive: '#233706', emissiveIntensity: .1, envMapIntensity: .5
+      });
+
+      const stemCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(.007, 1.557, .005),
+        new THREE.Vector3(-.014, 1.665, .012),
+        new THREE.Vector3(.005, 1.765, -.003),
+        new THREE.Vector3(-.002, 1.858, -.012)
+      ]);
+      const stem = new THREE.Mesh(taperedTube(stemCurve, 22, .047, .025, 10), stemMaterial);
+      stem.castShadow = stem.receiveShadow = true;
+      assembly.add(stem);
+
+      const leafConfigs = [
+        { angle: 4.05, out: 1.08, rise: 1.09, arch: .17, width: .575, base: .33, twist: -.105, phase: .8 },
+        { angle: 2.77, out: 1.055, rise: .94, arch: .21, width: .56, base: .34, twist: .105, phase: 3.1 },
+        { angle: -.78, out: 1.25, rise: .29, arch: .245, width: .65, base: .30, twist: -.075, phase: 1.9 },
+        { angle: 1.00, out: 1.12, rise: .405, arch: .24, width: .66, base: .315, twist: .13, phase: 4.8 }
+      ];
+
+      function leafPoint(config, t, s) {
+        const sinT = Math.max(0, Math.sin(Math.PI * t));
+        const wave = 1 + .04 * Math.sin(t * 22 + config.phase) + .018 * Math.sin(t * 49 + config.phase * 1.6);
+        const width = .005 * (1 - t) + .0007 + config.width * Math.pow(sinT, .60) * (.67 + .46 * t) * wave;
+        const radial = .165 + config.out * t;
+        const lateral = s * width + .048 * Math.sin(t * Math.PI) * Math.sin(config.phase);
+        const absS = Math.abs(s);
+        const ridgePhase = (t - .145 * Math.pow(absS, .76) - .12) / .105;
+        const ridgeDistance = (ridgePhase - Math.round(ridgePhase)) * .105;
+        const ribs = .0045 * Math.exp(-Math.pow(ridgeDistance / .007, 2)) * sinT * (1 - absS * .38);
+        const y = config.base + config.rise * t + config.arch * sinT
+          - .055 * Math.pow(t, 8)
+          + .112 * Math.pow(absS, 2.4) * sinT
+          + .031 * Math.sin(t * 25 + config.phase) * Math.pow(absS, 5) * Math.pow(sinT, .45)
+          + .011 * Math.sin(t * 53 + config.phase) * Math.pow(absS, 7) * sinT
+          + config.twist * s * t
+          + .017 * (1 - t) * Math.exp(-s * s * 70)
+          + ribs;
+        const a = config.angle;
+        return new THREE.Vector3(
+          Math.sin(a) * radial + Math.cos(a) * lateral,
+          y,
+          Math.cos(a) * radial - Math.sin(a) * lateral
+        );
+      }
+
+      const leaves = [];
+      leafConfigs.forEach(config => {
+        const group = new THREE.Group();
+        group.position.set(0, 1.68, 0);
+        assembly.add(group);
+
+        const positions = [], normalsColor = [], uvs = [], indices = [];
+        const rows = 96, cols = 40;
+        for (let j = 0; j <= rows; j++) {
+          const t = j / rows;
+          for (let i = 0; i <= cols; i++) {
+            const s = i / cols * 2 - 1;
+            const p = leafPoint(config, t, s);
+            positions.push(p.x, p.y, p.z);
+            uvs.push(i / cols, t);
+            const lightness = .94 + .045 * Math.sin(t * 8 + s * 3 + config.phase) + .023 * Math.cos(s * 10 + t * 17);
+            normalsColor.push(lightness * .98, lightness * 1.025, lightness * .97);
+          }
+        }
+        for (let j = 0; j < rows; j++) {
+          for (let i = 0; i < cols; i++) {
+            const a = j * (cols + 1) + i, b = a + cols + 1;
+            indices.push(a, b, a + 1, a + 1, b, b + 1);
+          }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(normalsColor, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+
+        const blade = new THREE.Mesh(geometry, leafMaterial);
+        blade.castShadow = blade.receiveShadow = true;
+        group.add(blade);
+
+        const base = leafPoint(config, 0, 0);
+        const petioleCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(-.006, .012, .003),
+          new THREE.Vector3(base.x * .19, .10, base.z * .19),
+          new THREE.Vector3(base.x * .57, config.base * .72, base.z * .57),
+          base
+        ]);
+        const petiole = new THREE.Mesh(taperedTube(petioleCurve, 24, .031, .014, 9), stemMaterial);
+        petiole.castShadow = petiole.receiveShadow = true;
+        group.add(petiole);
+
+        const veinGeometries = [];
+        const centerPoints = [];
+        for (let i = 0; i <= 36; i++) {
+          const p = leafPoint(config, .012 + i / 36 * .971, 0);
+          p.y += .0035;
+          centerPoints.push(p);
+        }
+        veinGeometries.push(taperedTube(new THREE.CatmullRomCurve3(centerPoints), 65, .009, .00065, 6));
+        for (let n = 0; n < 8; n++) {
+          const t0 = .12 + n * .105;
+          for (const side of [-1, 1]) {
+            const points = [];
+            for (let i = 0; i <= 14; i++) {
+              const u = i / 14;
+              const p = leafPoint(config, Math.min(.987, t0 + .145 * Math.pow(u, .76)), side * u * .94);
+              p.y += .0016;
+              points.push(p);
+            }
+            veinGeometries.push(taperedTube(new THREE.CatmullRomCurve3(points), 20, .0025 - n * .00015, .00035, 5));
+          }
+        }
+        const veins = new THREE.Mesh(mergeGeometries(veinGeometries), veinMaterial);
+        veins.receiveShadow = true;
+        group.add(veins);
+        veinGeometries.forEach(g => g.dispose());
+        leaves.push({ group, config });
+      });
+
+      // A miniature exposed PCB, held to the pod with an over-rim clip.
+      const boardAngle = 1.035;
+      const boardDirection = new THREE.Vector3(Math.sin(boardAngle), 0, Math.cos(boardAngle));
+      const boardTangent = new THREE.Vector3(Math.cos(boardAngle), 0, -Math.sin(boardAngle));
+      const board = new THREE.Group();
+      board.position.copy(boardDirection).multiplyScalar(.845);
+      board.position.y = .978;
+      board.rotation.y = boardAngle;
+      assembly.add(board);
+
+      roundedBox(.074, .40, .035, .012, clipPlastic, board, 0, .463, -.015);
+      roundedBox(.074, .041, .17, .014, clipPlastic, board, 0, .648, -.082);
+      roundedBox(.074, .163, .032, .01, clipPlastic, board, 0, .576, -.157);
+      roundedBox(.27, .09, .043, .009, clipPlastic, board, 0, .182, -.033);
+
+      const pcbMaterial = new THREE.MeshStandardMaterial({
+        color: '#14533a', roughness: .52, metalness: .13,
+        bumpMap: fineGrain, bumpScale: .00022, envMapIntensity: .6
+      });
+      const boardBase = roundedBox(.398, .558, .027, .016, pcbMaterial, board);
+
+      function pcbTexture() {
+        const c = document.createElement('canvas');
+        c.width = 512; c.height = 768;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#18563c';
+        ctx.fillRect(0, 0, 512, 768);
+        for (let i = 0; i < 12000; i++) {
+          ctx.fillStyle = random() > .5 ? 'rgba(166,205,148,.025)' : 'rgba(0,20,6,.045)';
+          ctx.fillRect(random() * 512, random() * 768, 1, 1);
+        }
+
+        const tracks = [
+          [[198,281],[151,281],[112,242],[112,148]],
+          [[197,307],[82,307],[82,454],[116,488],[116,570]],
+          [[197,335],[147,335],[129,353],[129,418],[65,482],[65,650]],
+          [[197,363],[164,363],[164,495],[219,550],[219,605]],
+          [[197,391],[184,391],[184,453],[252,521],[252,704]],
+          [[309,281],[354,281],[401,234],[401,137]],
+          [[309,310],[382,310],[427,355],[427,537],[362,602]],
+          [[309,337],[350,337],[379,366],[379,455],[319,515],[319,603]],
+          [[309,365],[341,365],[341,441],[285,497],[285,702]],
+          [[309,392],[318,401],[318,436],[287,466]],
+          [[59,147],[59,251],[101,293],[165,293]],
+          [[438,671],[393,671],[368,696],[340,696]],
+          [[77,671],[125,671],[148,694],[172,694]],
+          [[256,121],[256,180],[302,226],[349,226]],
+          [[174,127],[174,186],[202,215],[202,253]]
+        ];
+        ctx.lineCap = ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#559572';
+        ctx.lineWidth = 3.5;
+        for (const points of tracks) {
+          ctx.beginPath();
+          points.forEach((p, i) => i ? ctx.lineTo(...p) : ctx.moveTo(...p));
+          ctx.stroke();
+          const last = points[points.length - 1];
+          ctx.fillStyle = '#9ca76b';
+          ctx.beginPath(); ctx.arc(...last, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#1a4430';
+          ctx.beginPath(); ctx.arc(...last, 2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = '#b6c8a3';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = .65;
+        ctx.strokeRect(25, 24, 462, 720);
+        ctx.strokeRect(186, 257, 136, 158);
+        ctx.strokeRect(109, 512, 80, 94);
+        ctx.strokeRect(303, 512, 80, 94);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#d0d9b6';
+        ctx.font = '500 25px monospace';
+        ctx.fillText('SOIL / M2', 58, 66);
+        ctx.font = '15px monospace';
+        ctx.fillText('PWR', 122, 633);
+        ctx.fillText('DATA', 310, 633);
+        ctx.font = '16px monospace';
+        ctx.fillText('VERDE', 179, 742);
+        ctx.font = '11px monospace';
+        ctx.fillText('R1', 363, 183);
+        ctx.fillText('C2', 50, 386);
+        ctx.fillText('U1', 221, 245);
+        ctx.fillText('+  −', 151, 101);
+        ctx.fillText('VCC  GND  OUT', 157, 673);
+        return canvasTexture(c);
+      }
+
+      function roundedPlaneGeometry(w, h, r) {
+        const shape = new THREE.Shape();
+        const x = -w / 2, y = -h / 2;
+        shape.moveTo(x + r, y);
+        shape.lineTo(x + w - r, y);
+        shape.quadraticCurveTo(x + w, y, x + w, y + r);
+        shape.lineTo(x + w, y + h - r);
+        shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        shape.lineTo(x + r, y + h);
+        shape.quadraticCurveTo(x, y + h, x, y + h - r);
+        shape.lineTo(x, y + r);
+        shape.quadraticCurveTo(x, y, x + r, y);
+        const geometry = new THREE.ShapeGeometry(shape, 8);
+        const p = geometry.attributes.position, uv = geometry.attributes.uv;
+        for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + w / 2) / w, (p.getY(i) + h / 2) / h);
+        return geometry;
+      }
+
+      const boardFront = new THREE.Mesh(
+        roundedPlaneGeometry(.391, .55, .017),
+        new THREE.MeshStandardMaterial({ map: pcbTexture(), roughness: .47, metalness: .14, envMapIntensity: .65 })
+      );
+      boardFront.position.z = .0141;
+      boardFront.receiveShadow = true;
+      board.add(boardFront);
+
+      function frontDisc(radius, depth, material, x, y, z, parent = board) {
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, depth, 18), material);
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(x, y, z);
+        parent.add(mesh);
+        return mesh;
+      }
+      for (const x of [-.157, .157]) {
+        for (const y of [-.235, .235]) {
+          frontDisc(.016, .003, gold, x, y, .0165);
+          frontDisc(.010, .005, blackPlastic, x, y, .019);
+          if (y > 0) {
+            const screw = frontDisc(.011, .006, solder, x, y, .0225);
+            screw.castShadow = true;
+            const slot = new THREE.Mesh(new THREE.BoxGeometry(.013, .0025, .0015), blackPlastic);
+            slot.position.set(x, y, .026);
+            slot.rotation.z = -.42;
+            board.add(slot);
+          }
+        }
+      }
+
+      roundedBox(.116, .119, .027, .004, blackPlastic, board, .005, .041, .0315);
+      for (let i = 0; i < 6; i++) {
+        const y = .041 + (i - 2.5) * .017;
+        for (const side of [-1, 1]) roundedBox(.019, .009, .008, .0015, solder, board, .005 + side * .065, y, .022);
+      }
+      const chipLabelCanvas = document.createElement('canvas');
+      chipLabelCanvas.width = chipLabelCanvas.height = 128;
+      const chipContext = chipLabelCanvas.getContext('2d');
+      chipContext.fillStyle = '#9caaa1';
+      chipContext.font = '19px monospace';
+      chipContext.textAlign = 'center';
+      chipContext.fillText('VM02', 64, 59);
+      chipContext.font = '12px monospace';
+      chipContext.fillText('A 031', 64, 81);
+      const chipLabel = new THREE.Mesh(new THREE.PlaneGeometry(.088, .085), new THREE.MeshBasicMaterial({ map: canvasTexture(chipLabelCanvas), transparent: true, opacity: .63, depthWrite: false }));
+      chipLabel.position.set(.005, .041, .0456);
+      board.add(chipLabel);
+      frontDisc(.0033, .001, new THREE.MeshStandardMaterial({ color: '#738077', roughness: .7 }), -.035, .084, .0458);
+
+      const ceramic = new THREE.MeshStandardMaterial({ color: '#9b9477', roughness: .73 });
+      function smd(x, y, rotation = 0, type = 'resistor') {
+        const g = new THREE.Group();
+        g.position.set(x, y, .024);
+        g.rotation.z = rotation;
+        board.add(g);
+        roundedBox(.055, .022, .012, .002, type === 'resistor' ? blackPlastic : ceramic, g);
+        roundedBox(.012, .024, .013, .0015, solder, g, -.023, 0, 0);
+        roundedBox(.012, .024, .013, .0015, solder, g, .023, 0, 0);
+        if (type === 'resistor') {
+          const mark = new THREE.Mesh(new THREE.PlaneGeometry(.016, .003), new THREE.MeshBasicMaterial({ color: '#a5aca3' }));
+          mark.position.z = .0065;
+          g.add(mark);
+        }
+      }
+      smd(.115, .15, 0);
+      smd(.126, .095, Math.PI / 2, 'capacitor');
+      smd(-.135, .045, Math.PI / 2, 'capacitor');
+      smd(-.116, -.033, 0);
+      smd(.112, -.049, 0);
+      smd(-.028, -.199, 0, 'capacitor');
+
+      const connectorMaterial = new THREE.MeshStandardMaterial({ color: '#e3e1cf', roughness: .55 });
+      roundedBox(.111, .055, .05, .004, connectorMaterial, board, -.048, .17, .039);
+      for (const x of [-.07, -.031]) {
+        roundedBox(.022, .003, .02, .0008, blackPlastic, board, x, .198, .047);
+        const pin = new THREE.Mesh(new THREE.CylinderGeometry(.007, .007, .023, 10), solder);
+        pin.position.set(x, .207, .047);
+        board.add(pin);
+      }
+      for (let i = 0; i < 3; i++) frontDisc(.0105, .002, gold, -.058 + i * .057, -.235, .016);
+
+      function glowTexture() {
+        const c = document.createElement('canvas');
+        c.width = c.height = 128;
+        const ctx = c.getContext('2d');
+        const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gradient.addColorStop(0, 'rgba(255,255,255,.75)');
+        gradient.addColorStop(.14, 'rgba(255,255,255,.40)');
+        gradient.addColorStop(.4, 'rgba(255,255,255,.1)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 128, 128);
+        return canvasTexture(c);
+      }
+
+      const glowMap = glowTexture(), glows = [];
+      function makeLED(x, hex, emissive) {
+        roundedBox(.045, .058, .008, .004, solder, board, x, -.121, .021);
+        roundedBox(.041, .035, .012, .004, connectorMaterial, board, x, -.121, .027);
+        const material = new THREE.MeshPhysicalMaterial({
+          color: hex, emissive, emissiveIntensity: 1.8,
+          roughness: .25, clearcoat: .8, clearcoatRoughness: .2
+        });
+        const lens = new THREE.Mesh(new THREE.SphereGeometry(.014, 16, 10), material);
+        lens.scale.set(1, 1.05, .48);
+        lens.position.set(x, -.121, .037);
+        board.add(lens);
+        const glowMaterial = new THREE.SpriteMaterial({
+          map: glowMap, color: emissive, transparent: true, opacity: .27,
+          blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const glow = new THREE.Sprite(glowMaterial);
+        glow.position.set(x, -.121, .042);
+        glow.scale.set(.115, .115, 1);
+        board.add(glow);
+        glows.push(glow);
+        const light = new THREE.PointLight(emissive, .004, .17, 2);
+        light.position.set(x, -.121, .066);
+        board.add(light);
+        return { lens, glow, light };
+      }
+      const greenLED = makeLED(-.081, '#81ff88', '#1eff5a');
+      const blueLED = makeLED(.079, '#69bdff', '#198aff');
+
+      // Stainless twin-prong probe. Only the lower needle tips are buried.
+      const probe = new THREE.Group();
+      probe.position.copy(boardDirection).multiplyScalar(.463).addScaledVector(boardTangent, -.075);
+      probe.rotation.y = boardAngle;
+      assembly.add(probe);
+
+      for (const x of [-.072, .072]) {
+        const needle = new THREE.Mesh(new THREE.CylinderGeometry(.012, .0112, .49, 18), steel);
+        needle.position.set(x, 1.73, 0);
+        needle.castShadow = true;
+        probe.add(needle);
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(.0112, .055, 16), steel);
+        tip.rotation.z = Math.PI;
+        tip.position.set(x, 1.4575, 0);
+        probe.add(tip);
+        const collar = new THREE.Mesh(new THREE.CylinderGeometry(.019, .019, .025, 20), steel);
+        collar.position.set(x, 1.967, 0);
+        probe.add(collar);
+        const socket = new THREE.Mesh(new THREE.CylinderGeometry(.011, .011, .023, 14), solder);
+        socket.position.set(x, 2.035, 0);
+        probe.add(socket);
+      }
+      const probeHeader = roundedBox(.209, .055, .073, .009, blackPlastic, probe, 0, 2.003, 0);
+      roundedBox(.202, .012, .075, .004, steel, probe, 0, 1.981, 0);
+
+      assembly.updateMatrixWorld(true);
+      const redWireMaterial = new THREE.MeshPhysicalMaterial({ color: '#aa2922', roughness: .43, clearcoat: .12, clearcoatRoughness: .5 });
+      const blackWireMaterial = new THREE.MeshPhysicalMaterial({ color: '#141a1c', roughness: .42, clearcoat: .13, clearcoatRoughness: .5 });
+
+      function radialPoint(radius, lateral, height) {
+        return boardDirection.clone().multiplyScalar(radius).addScaledVector(boardTangent, lateral).setY(height);
+      }
+      for (let i = 0; i < 2; i++) {
+        const side = i === 0 ? -1 : 1;
+        const start = probe.localToWorld(new THREE.Vector3(side * .072, 2.046, 0));
+        const end = board.localToWorld(new THREE.Vector3(i === 0 ? -.07 : -.031, .217, .047));
+        const lateral = -.058 + side * .022;
+        const curve = new THREE.CatmullRomCurve3([
+          start,
+          start.clone().add(new THREE.Vector3(.014, .041, .01)),
+          radialPoint(.57, lateral, 2.045 - i * .018),
+          radialPoint(.745, lateral - .022, 1.843 - i * .008),
+          radialPoint(.906, lateral - .026, 1.591),
+          radialPoint(.936, lateral - .012, 1.345),
+          end
+        ], false, 'centripetal');
+        const wire = new THREE.Mesh(new THREE.TubeGeometry(curve, 110, .0075, 9, false), i === 0 ? redWireMaterial : blackWireMaterial);
+        wire.castShadow = wire.receiveShadow = true;
+        assembly.add(wire);
+      }
+
+      // An invisible generous hit target keeps miniature hardware easy to select.
+      const boardHit = new THREE.Mesh(
+        new THREE.BoxGeometry(.46, .67, .15),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      boardHit.position.z = .045;
+      board.add(boardHit);
+      const pickTargets = [boardHit, probeHeader];
+
+      // Bake a soft height-weighted contact shadow; the studio remains inexpensive to animate.
+      function bakeContactShadow() {
+        const size = 512, extent = 4.8;
+        const target = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true });
+        const blurTarget = new THREE.WebGLRenderTarget(size, size, { depthBuffer: false });
+        const shadowCamera = new THREE.OrthographicCamera(-extent / 2, extent / 2, extent / 2, -extent / 2, .01, 4.6);
+        shadowCamera.position.set(0, -.035, 0);
+        shadowCamera.up.set(0, 0, 1);
+        shadowCamera.lookAt(0, 2, 0);
+
+        const heightMaterial = new THREE.ShaderMaterial({
+          side: THREE.DoubleSide,
+          vertexShader: `
+            varying float vHeight;
+            void main() {
+              vec4 p = vec4(position, 1.0);
+              #ifdef USE_INSTANCING
+                p = instanceMatrix * p;
+              #endif
+              vec4 world = modelMatrix * p;
+              vHeight = world.y;
+              gl_Position = projectionMatrix * viewMatrix * world;
+            }`,
+          fragmentShader: `
+            varying float vHeight;
+            void main() {
+              float opacity = exp(-max(vHeight, 0.0) * 1.65);
+              gl_FragColor = vec4(0.0, 0.0, 0.0, opacity);
+            }`
+        });
+        const blurMaterial = new THREE.ShaderMaterial({
+          uniforms: { map: { value: null }, direction: { value: new THREE.Vector2() } },
+          depthTest: false, depthWrite: false,
+          vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}`,
+          fragmentShader: `
+            uniform sampler2D map;
+            uniform vec2 direction;
+            varying vec2 vUv;
+            void main(){
+              vec4 c = texture2D(map,vUv) * 0.227027027;
+              c += texture2D(map,vUv + direction * 1.384615385) * 0.316216216;
+              c += texture2D(map,vUv - direction * 1.384615385) * 0.316216216;
+              c += texture2D(map,vUv + direction * 3.230769231) * 0.070270270;
+              c += texture2D(map,vUv - direction * 3.230769231) * 0.070270270;
+              gl_FragColor=c;
+            }`
+        });
+        const blurScene = new THREE.Scene();
+        const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
+        quad.frustumCulled = false;
+        blurScene.add(quad);
+        const blurCamera = new THREE.Camera();
+
+        floor.visible = false;
+        glows.forEach(g => g.visible = false);
+        const oldBackground = scene.background;
+        scene.background = null;
+        scene.overrideMaterial = heightMaterial;
+        renderer.shadowMap.enabled = false;
+        renderer.setClearColor(0x000000, 0);
+        renderer.setRenderTarget(target);
+        renderer.clear();
+        renderer.render(scene, shadowCamera);
+        scene.overrideMaterial = null;
+
+        for (const radius of [3.8, 1.6]) {
+          blurMaterial.uniforms.map.value = target.texture;
+          blurMaterial.uniforms.direction.value.set(radius / size, 0);
+          renderer.setRenderTarget(blurTarget);
+          renderer.render(blurScene, blurCamera);
+          blurMaterial.uniforms.map.value = blurTarget.texture;
+          blurMaterial.uniforms.direction.value.set(0, radius / size);
+          renderer.setRenderTarget(target);
+          renderer.render(blurScene, blurCamera);
+        }
+
+        renderer.setRenderTarget(null);
+        renderer.setClearColor(background, 1);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.needsUpdate = true;
+        scene.background = oldBackground;
+        floor.visible = true;
+        glows.forEach(g => g.visible = true);
+
+        const shadow = new THREE.Mesh(
+          new THREE.PlaneGeometry(extent, extent),
+          new THREE.MeshBasicMaterial({ map: target.texture, transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide })
+        );
+        shadow.rotation.x = Math.PI / 2;
+        shadow.position.y = -.003;
+        shadow.renderOrder = 1;
+        scene.add(shadow);
+        heightMaterial.dispose();
+        blurMaterial.dispose();
+        quad.geometry.dispose();
+        blurTarget.dispose();
+      }
+
+      let activeView = 'plant';
+      let flight = null;
+      let annotationsVisible = true;
+      let width = 1, height = 1;
+      const homeTarget = new THREE.Vector3(0, 1.53, 0);
+      const homeDirection = new THREE.Vector3(4.3, 3.2, 6.8).normalize();
+      const homePosition = new THREE.Vector3();
+      const focusPosition = new THREE.Vector3();
+      const focusTarget = new THREE.Vector3();
+
+      function calculateCameras() {
+        const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
+        const visibleHeight = Math.max(4.48, 3.66 / camera.aspect);
+        const distance = visibleHeight / (2 * Math.tan(halfFov));
+        homePosition.copy(homeTarget).addScaledVector(homeDirection, distance);
+
+        focusTarget.copy(board.position).multiplyScalar(.70);
+        focusTarget.y = 1.325;
+        const sensorDistance = Math.max(3.28, (1.83 / camera.aspect) / (2 * Math.tan(halfFov)));
+        focusPosition.copy(focusTarget).addScaledVector(new THREE.Vector3(.778, .38, .50).normalize(), sensorDistance);
+        controls.maxDistance = Math.max(14, distance * 1.55);
+      }
+
+      function resize() {
+        width = stage.clientWidth;
+        height = stage.clientHeight;
+        camera.aspect = width / Math.max(1, height);
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height, false);
+        calculateCameras();
+        flight = null;
+        controls.enabled = true;
+        camera.position.copy(activeView === 'plant' ? homePosition : focusPosition);
+        controls.target.copy(activeView === 'plant' ? homeTarget : focusTarget);
+        controls.update();
+      }
+      resize();
+      bakeContactShadow();
+
+      const rotateButton = $('rotate-button');
+      function setAutoOrbit(on) {
+        controls.autoRotate = on;
+        rotateButton.classList.toggle('active', on);
+        rotateButton.setAttribute('aria-pressed', String(on));
+      }
+
+      function updateViewInterface() {
+        const sensorView = activeView === 'sensor';
+        $('view-index').textContent = sensorView ? '02' : '01';
+        $('view-category').textContent = sensorView ? 'INTELLIGENCE AT THE ROOTS' : 'THE CONNECTED SEEDLING';
+        $('view-title').innerHTML = sensorView ? 'Quietly<br> connected.' : 'Anatomy<br> of growth.';
+        $('view-species').innerHTML = sensorView
+          ? 'Twin-prong soil sensor<br><em>Stainless steel · precise by nature</em>'
+          : 'Butterhead lettuce<br><em>Lactuca sativa</em>';
+        $('stat-a').textContent = sensorView ? '02' : '12';
+        $('stat-a-label').textContent = sensorView ? 'STATUS LEDS' : 'DAYS OF GROWTH';
+        $('stat-b').textContent = sensorView ? '68%' : '04';
+        $('stat-b-label').textContent = sensorView ? 'SOIL MOISTURE' : 'TRUE LEAVES';
+        $('sensor-button').classList.toggle('active', sensorView);
+        $('sensor-button').setAttribute('aria-pressed', String(sensorView));
+        $('sensor-button-text').textContent = sensorView ? 'Seedling' : 'Sensor';
+        $('inspect-link-text').textContent = sensorView ? 'Back to the whole seedling' : 'A closer look at the sensor';
+        $('canopy-name').textContent = sensorView ? 'Stainless steel' : 'Living canopy';
+        $('canopy-detail').textContent = sensorView ? 'Two prongs · one root zone' : '04 broad, fresh leaves';
+      }
+
+      function goToView(view) {
+        activeView = view;
+        setAutoOrbit(false);
+        calculateCameras();
+        controls.enabled = false;
+        flight = {
+          start: performance.now(),
+          duration: reducedMotion ? 1 : 1200,
+          fromPosition: camera.position.clone(),
+          fromTarget: controls.target.clone(),
+          toPosition: (view === 'plant' ? homePosition : focusPosition).clone(),
+          toTarget: (view === 'plant' ? homeTarget : focusTarget).clone()
+        };
+        updateViewInterface();
+      }
+      const switchView = () => goToView(activeView === 'plant' ? 'sensor' : 'plant');
+      $('sensor-button').addEventListener('click', switchView);
+      $('inspect-link').addEventListener('click', switchView);
+      $('sensor-hotspot-button').addEventListener('click', () => goToView('sensor'));
+      $('reset-button').addEventListener('click', () => goToView('plant'));
+      rotateButton.addEventListener('click', () => {
+        if (!flight) setAutoOrbit(!controls.autoRotate);
+      });
+
+      function toggleDetails() {
+        annotationsVisible = !annotationsVisible;
+        $('annotations').classList.toggle('hidden', !annotationsVisible);
+        $('details-button').classList.toggle('active', annotationsVisible);
+        $('details-button').setAttribute('aria-pressed', String(annotationsVisible));
+      }
+      $('details-button').addEventListener('click', toggleDetails);
+
+      window.addEventListener('keydown', event => {
+        if (event.target instanceof HTMLElement && /BUTTON|INPUT|TEXTAREA/.test(event.target.tagName)) return;
+        if (event.code === 'Space') {
+          event.preventDefault();
+          if (!flight) setAutoOrbit(!controls.autoRotate);
+        }
+        if (event.key.toLowerCase() === 'r' || event.key === 'Escape') goToView('plant');
+        if (event.key.toLowerCase() === 'd') toggleDetails();
+        if (event.key.toLowerCase() === 's') switchView();
+      });
+
+      const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+      let pointerDown = null, dragging = false;
+      function intersectHardware(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
+        raycaster.setFromCamera(pointer, camera);
+        return raycaster.intersectObjects(pickTargets, false).length > 0;
+      }
+      renderer.domElement.addEventListener('pointerdown', event => {
+        pointerDown = { x: event.clientX, y: event.clientY };
+        dragging = true;
+      });
+      renderer.domElement.addEventListener('pointermove', event => {
+        if (dragging) return;
+        renderer.domElement.style.cursor = intersectHardware(event) ? 'pointer' : 'grab';
+      });
+      renderer.domElement.addEventListener('pointerup', event => {
+        dragging = false;
+        if (pointerDown && Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) < 5 && intersectHardware(event)) {
+          goToView('sensor');
+        }
+        pointerDown = null;
+      });
+      renderer.domElement.addEventListener('pointercancel', () => { dragging = false; pointerDown = null; });
+      renderer.domElement.addEventListener('pointerleave', () => { dragging = false; });
+
+      let resizeFrame;
+      window.addEventListener('resize', () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(resize);
+      });
+
+      const projected = new THREE.Vector3();
+      const anchor = new THREE.Vector3();
+      const toCamera = new THREE.Vector3();
+      function positionHotspot(element, world, visible = true) {
+        projected.copy(world).project(camera);
+        const x = (projected.x * .5 + .5) * width;
+        const y = (-projected.y * .5 + .5) * height;
+        const onScreen = visible && projected.z > -1 && projected.z < 1 && x > 8 && x < width - 8 && y > 8 && y < height - 8;
+        element.style.visibility = onScreen ? 'visible' : 'hidden';
+        if (!onScreen) return;
+        element.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`;
+        element.classList.toggle('flip', x > width - 205);
+      }
+      function updateAnnotations() {
+        if (!annotationsVisible) return;
+        anchor.set(.198, -.045, .038);
+        board.localToWorld(anchor);
+        toCamera.copy(camera.position).sub(board.position).normalize();
+        positionHotspot($('sensor-hotspot'), anchor, toCamera.dot(boardDirection) > .12);
+        if (activeView === 'sensor') {
+          probe.localToWorld(anchor.set(.09, 1.87, 0));
+        } else {
+          anchor.copy(leafPoint(leaves[1].config, .76, .61));
+          leaves[1].group.localToWorld(anchor);
+        }
+        positionHotspot($('canopy-hotspot'), anchor);
+      }
+
+      const clock = new THREE.Clock();
+      let elapsed = 0, lastTelemetry = 0;
+      let firstFrame = true;
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = Math.min(clock.getDelta(), .05);
+        if (document.hidden) return;
+        elapsed += delta;
+
+        if (flight) {
+          const t = Math.min(1, (performance.now() - flight.start) / flight.duration);
+          const ease = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          camera.position.lerpVectors(flight.fromPosition, flight.toPosition, ease);
+          controls.target.lerpVectors(flight.fromTarget, flight.toTarget, ease);
+          if (t >= 1) { flight = null; controls.enabled = true; }
+        }
+        controls.update();
+
+        if (!reducedMotion) {
+          leaves.forEach((leaf, i) => {
+            leaf.group.rotation.x = Math.sin(elapsed * .63 + i * 1.7) * .007;
+            leaf.group.rotation.z = Math.sin(elapsed * .49 + leaf.config.phase) * .009;
+          });
+        }
+        const pulse = reducedMotion ? .7 : .5 + .5 * Math.sin(elapsed * 2.32);
+        blueLED.lens.material.emissiveIntensity = 1.35 + pulse * .95;
+        blueLED.glow.material.opacity = .18 + pulse * .17;
+        blueLED.light.intensity = .0025 + pulse * .002;
+        greenLED.lens.material.emissiveIntensity = 1.7 + Math.sin(elapsed * .8) * .06;
+
+        if (elapsed - lastTelemetry > 2) {
+          $('moisture-fill').style.width = `${68 + Math.sin(elapsed * .31) * .45}%`;
+          lastTelemetry = elapsed;
+        }
+
+        renderer.render(scene, camera);
+        updateAnnotations();
+
+        if (firstFrame) {
+          firstFrame = false;
+          requestAnimationFrame(() => document.body.classList.add('ready'));
+        }
+      }
+      animate();
+    }
+  </script>
+</body>
+</html>

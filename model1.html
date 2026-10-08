@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#e9ebe8">
+<title>VERD — Vertical growing, beautifully simple.</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{--ink:#26322b;--muted:#778078;--green:#456e46;--line:rgba(42,57,44,.12)}
+*{box-sizing:border-box}
+body{margin:0;background:#e9ebe8;color:var(--ink);font-family:"DM Sans",sans-serif;overflow:hidden}
+button{font:inherit}
+#stage{position:absolute;inset:0;touch-action:none}
+#stage canvas{display:block;width:100%;height:100%}
+header{position:absolute;top:32px;left:40px;right:40px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.logo{font-family:Manrope,sans-serif;font-size:25px;font-weight:800;letter-spacing:5px;display:flex;align-items:center;gap:13px}
+.logo svg{width:25px;height:29px}
+.header-right{display:flex;align-items:center;gap:25px;font-size:10px;letter-spacing:2px;font-weight:600}
+.badge{display:flex;gap:8px;align-items:center;padding:10px 13px;border:1px solid var(--line);border-radius:20px;letter-spacing:1.2px;background:rgba(255,255,255,.25)}
+.dot{height:5px;width:5px;background:#678b51;border-radius:50%;box-shadow:0 0 0 3px rgba(103,139,81,.1)}
+.intro{position:absolute;left:42px;top:122px;pointer-events:none}
+.eyebrow{font-size:10px;letter-spacing:2.5px;color:var(--muted);font-weight:600;margin:0 0 15px}
+h1{font-family:Manrope,sans-serif;font-size:39px;line-height:1.2;letter-spacing:-1.7px;font-weight:500;margin:0 0 17px}
+.intro p{font-size:12px;color:var(--muted);line-height:1.8;margin:0}
+.specs{position:absolute;left:42px;bottom:145px;pointer-events:none}
+.spec{margin-top:19px;border-left:1px solid #b9c0b8;padding-left:13px}
+.spec strong{display:block;font-size:17px;font-weight:500;letter-spacing:-.5px}
+.spec span{display:block;font-size:9px;letter-spacing:1.8px;color:var(--muted);margin-top:5px;text-transform:uppercase}
+#panel{position:absolute;right:36px;top:50%;transform:translateY(-40%);width:204px;padding:21px;background:rgba(250,251,248,.8);border:1px solid rgba(255,255,255,.8);border-radius:15px;backdrop-filter:blur(15px);box-shadow:0 12px 40px rgba(38,50,43,.035);transition:opacity .3s,transform .3s}
+.panel-heading{display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:1.8px;color:var(--muted);margin-bottom:19px}
+.panel-heading .dot{width:6px;height:6px}
+.metric{display:flex;align-items:baseline;justify-content:space-between;margin:14px 0;font-size:11px;color:#7c847c}
+.metric strong{color:var(--ink);font-size:14px;font-weight:500}
+.metric small{font-size:10px;color:var(--muted)}
+.tank-bar{height:3px;background:#e0e5dd;border-radius:4px;overflow:hidden;margin:8px 0 17px}
+.tank-bar div{height:100%;width:82%;background:#879f7a}
+.panel-footer{padding-top:13px;border-top:1px solid var(--line);font-size:9px;display:flex;justify-content:space-between;color:var(--muted)}
+.panel-footer span:last-child{color:#648357}
+.bottom{position:absolute;bottom:28px;left:40px;right:40px;display:flex;align-items:end;justify-content:space-between;pointer-events:none}
+.caption{font-size:9px;letter-spacing:1.8px;color:var(--muted);line-height:1.8}
+.controls{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;align-items:center;padding:6px;gap:5px;border:1px solid rgba(255,255,255,.8);border-radius:50px;background:rgba(250,251,248,.85);box-shadow:0 8px 30px rgba(38,50,43,.07);backdrop-filter:blur(14px)}
+.controls button{border:0;background:transparent;color:#7c857d;cursor:pointer;padding:11px 15px;border-radius:24px;display:flex;align-items:center;gap:8px;font-size:11px;white-space:nowrap;transition:background .2s,color .2s}
+.controls button:hover{background:#e9ede6;color:#344d35}
+.controls button.active{background:#e5ecdf;color:#42623d}
+.controls svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.controls .divider{height:20px;width:1px;background:var(--line);margin:0 2px}
+.hint{position:absolute;bottom:97px;left:50%;transform:translateX(-50%);color:#8a9289;font-size:9px;letter-spacing:1.1px;pointer-events:none;white-space:nowrap}
+#loading{position:absolute;inset:0;background:#e9ebe8;display:flex;align-items:center;justify-content:center;z-index:10;font-size:11px;letter-spacing:3px;transition:opacity .6s}
+#loading.hidden{opacity:0;pointer-events:none}
+@media(max-width:1000px){#panel{right:24px;width:173px;padding:16px}.intro{left:28px}h1{font-size:30px}.intro p{font-size:11px}.specs{left:28px}header{left:28px;right:28px}.header-right>span{display:none}}
+@media(max-width:700px){header{top:22px;left:22px;right:22px}.logo{font-size:20px;gap:9px}.logo svg{width:20px}.badge{font-size:8px;padding:8px 10px}.intro{top:88px;left:22px}.eyebrow{font-size:8px;margin-bottom:7px}h1{font-size:25px;margin-bottom:7px;letter-spacing:-1px}.intro p{display:none}.specs{display:none}#panel{top:auto;bottom:126px;right:17px;width:140px;transform:none;padding:12px}.panel-heading{margin-bottom:9px;font-size:8px}.metric{margin:9px 0;font-size:9px}.metric strong{font-size:11px}.panel-footer{font-size:8px;padding-top:9px}.tank-bar{margin-bottom:9px}.bottom{bottom:16px;left:22px;right:22px}.caption{font-size:7px}.bottom .caption:last-child{display:none}.controls{bottom:45px;padding:5px;gap:0}.controls button{padding:10px 12px;font-size:10px;gap:6px}.hint{bottom:103px;font-size:8px}.panel-mobile-hide{display:none!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="stage" aria-label="Interactive 3D model of a four-tier hydroponic growing tower"></div>
+<header>
+<div class="logo"><svg viewBox="0 0 26 30" fill="none"><path d="M13 27V12M13 18C4 18 2 11 3 4c7 0 11 5 10 14ZM13 23c0-9 4-15 11-15 1 9-3 15-11 15Z" stroke="currentColor" stroke-width="1.5"/></svg>VERDE</div>
+<div class="header-right"><span>DESIGNED TO GROW</span><div class="badge"><i class="dot"></i> SYSTEM ONLINE</div></div>
+</header>
+<section class="intro">
+<div class="eyebrow">THE INDOOR GROWING SYSTEM</div>
+<h1>A little space.<br>A lot of life.</h1>
+<p>Four levels. Twenty plants.<br>Fresh greens, thoughtfully grown.</p>
+</section>
+<div class="specs">
+<div class="spec"><strong>20</strong><span>Growing sites</span></div>
+<div class="spec"><strong>4 tiers</strong><span>One small footprint</span></div>
+<div class="spec"><strong>Closed loop</strong><span>Recirculating hydration</span></div>
+</div>
+<aside id="panel">
+<div class="panel-heading">LIVE ENVIRONMENT <i class="dot"></i></div>
+<div class="metric"><span>Water temp.</span><strong>21.4 <small>°C</small></strong></div>
+<div class="metric"><span>Nutrient pH</span><strong>6.2</strong></div>
+<div class="metric"><span>Grow lights</span><strong id="light-status">ON</strong></div>
+<div class="metric"><span>Reservoir</span><strong>82 <small>%</small></strong></div>
+<div class="tank-bar"><div></div></div>
+<div class="panel-footer"><span id="flow-label">Cycle active</span><span id="flow-status">Optimal</span></div>
+</aside>
+<div class="hint">DRAG TO ORBIT &nbsp; · &nbsp; SCROLL TO ZOOM</div>
+<nav class="controls" aria-label="Model controls">
+<button id="rotate" title="Toggle automatic rotation"><svg viewBox="0 0 20 20"><path d="M16 6a7 7 0 1 0 1 7M16 2v4h-4"/></svg>Rotate</button>
+<button id="lights" class="active" aria-pressed="true" title="Toggle grow lights"><svg viewBox="0 0 20 20"><path d="M7 14h6M8 17h4M6 10a5 5 0 1 1 8 0l-1 3H7Z"/></svg>Lights</button>
+<button id="flow" class="active" aria-pressed="true" title="Toggle water circulation"><svg viewBox="0 0 20 20"><path d="M10 2S4 8 4 12a6 6 0 0 0 12 0c0-4-6-10-6-10Z"/></svg>Water</button>
+<div class="divider"></div>
+<button id="reset" title="Reset view" aria-label="Reset view"><svg viewBox="0 0 20 20"><path d="m3 9 7-6 7 6M5 8v9h10V8M8 17v-5h4v5"/></svg></button>
+</nav>
+<div class="bottom"><div class="caption">VERDE / TOWER 01<br>PRECISION-GROWN LIVING</div><div class="caption">PRODUCT EXPLORER &nbsp; / &nbsp; 01</div></div>
+<div id="loading">CULTIVATING YOUR VIEW</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const stage = document.getElementById('stage');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#e9ebe8');
+scene.fog = new THREE.Fog('#e9ebe8', 15, 35);
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+stage.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(34,innerWidth/innerHeight,.1,60);
+const startPosition = new THREE.Vector3(6.2,4.5,9.2);
+camera.position.copy(startPosition);
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,2.13,0);
+controls.enableDamping = true;
+controls.dampingFactor = .065;
+controls.minDistance = 6;
+controls.maxDistance = 16;
+controls.minPolarAngle = .35;
+controls.maxPolarAngle = Math.PI*.49;
+controls.enablePan = false;
+controls.autoRotateSpeed = .42;
+
+scene.add(new THREE.HemisphereLight(0xf8fff2,0xa1a49c,2.25));
+const key = new THREE.DirectionalLight(0xfffcf4,3.1);
+key.position.set(-4.5,8,6);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-5,right:5,top:7,bottom:-5,near:.1,far:22});
+key.shadow.normalBias=.025;
+key.shadow.bias=-.0002;
+key.shadow.radius=5;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xe5edf5,1.4);fill.position.set(5,5,-4);scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff,1.2);rim.position.set(-2,4,-6);scene.add(rim);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0xe9ebe8,roughness:.96}));
+floor.rotation.x=-Math.PI/2;floor.position.y=-.025;floor.receiveShadow=true;scene.add(floor);
+
+const tower = new THREE.Group();scene.add(tower);
+const black = new THREE.MeshStandardMaterial({color:0x252b2b,metalness:.75,roughness:.48});
+const blackInset = new THREE.MeshStandardMaterial({color:0x121818,metalness:.35,roughness:.62});
+const white = new THREE.MeshStandardMaterial({color:0xf7f8f3,roughness:.36,metalness:.06});
+const trayMat = new THREE.MeshStandardMaterial({color:0xd9ded7,metalness:.35,roughness:.45});
+const steel = new THREE.MeshStandardMaterial({color:0x929c96,metalness:.85,roughness:.34});
+const dark = new THREE.MeshStandardMaterial({color:0x313d28,roughness:1});
+const glowMat = new THREE.MeshStandardMaterial({color:0xe9ffd7,emissive:0xd4ffc0,emissiveIntensity:1.8,roughness:.3});
+const glassMat = new THREE.MeshPhysicalMaterial({color:0xe7faf5,transparent:true,opacity:.42,roughness:.08,metalness:0,transmission:.35,thickness:.04});
+const waterMat = new THREE.MeshStandardMaterial({color:0x86c0ae,transparent:true,opacity:.46,roughness:.2});
+
+function box(w,h,d,mat,x,y,z,r=.015){
+ const geo=r?new RoundedBoxGeometry(w,h,d,2,r):new THREE.BoxGeometry(w,h,d);
+ const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;tower.add(mesh);return mesh;
+}
+function cyl(rt,rb,h,mat,x,y,z,segments=32){
+ const mesh=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,segments),mat);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;tower.add(mesh);return mesh;
+}
+function tube(points,r,mat,segments=64){
+ const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));
+ const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,segments,r,10,false),mat);
+ tower.add(mesh);return {mesh,curve};
+}
+const reservoir=box(2.58,.58,.94,white,0,.34,0,.075);
+box(2.48,.028,.86,trayMat,0,.636,0,.025);
+box(2.44,.032,.82,white,0,.659,0,.02);
+for(const x of [-1.12,1.12]) for(const z of [-.32,.32]) box(.14,.075,.14,blackInset,x,.04,z,.025);
+box(.4,.038,.16,white,-.83,.688,.13,.025);
+const cap=cyl(.09,.09,.025,trayMat,-.83,.711,.13);
+box(.39,.075,.011,steel,0,.345,.475,.012);
+
+function labelTexture(text,sub){
+ const c=document.createElement('canvas');c.width=512;c.height=128;
+ const ctx=c.getContext('2d');ctx.fillStyle='#f7f8f3';ctx.fillRect(0,0,512,128);
+ ctx.fillStyle='#637064';ctx.font='500 48px sans-serif';ctx.textAlign='center';ctx.fillText(text,256,58);
+ ctx.font='18px sans-serif';ctx.fillStyle='#9aa197';ctx.fillText(sub,256,95);
+ const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return tex;
+}
+const logo=new THREE.Mesh(new THREE.PlaneGeometry(.36,.09),new THREE.MeshBasicMaterial({map:labelTexture('V E R D','T O W E R   0 1')}));
+logo.position.set(0,.345,.483);tower.add(logo);
+
+for(const x of [-1.3,1.3]){
+ for(const z of [-.31,.31]){
+  box(.073,3.84,.073,black,x,2.54,z,.012);
+  box(.014,3.73,.006,blackInset,x+.022,2.54,z+.039,.001);
+ }
+ box(.073,.072,.7,black,x,4.425,0,.01);
+ box(.073,.072,.7,black,x,.78,0,.01);
+}
+box(2.66,.075,.073,black,0,4.425,-.31,.012);
+box(2.66,.06,.073,black,0,4.425,.31,.012);
+
+let seed=12;
+function random(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+const leaves=[];
+const leafMaterials=[0x6b9c35,0x78aa3e,0x568b2e,0x82af43,0x629431].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.78,side:THREE.DoubleSide}));
+const veinMat=new THREE.MeshStandardMaterial({color:0x99bb59,roughness:.9});
+function leafGeometry(length,width,curl,phase){
+ const rows=13,cols=8,verts=[],uvs=[],indices=[];
+ for(let j=0;j<=rows;j++){
+  const t=j/rows;
+  const breadth=Math.pow(Math.sin(Math.PI*t),.7)*width*(.89+.11*Math.sin(t*22+phase));
+  for(let i=0;i<=cols;i++){
+   const u=(i/cols)*2-1;
+   const ripple=Math.sin(t*27+phase+Math.abs(u)*2)*.012*Math.pow(Math.abs(u),3)*Math.sin(Math.PI*t);
+   verts.push(u*breadth,t*length,curl*t*t+Math.pow(Math.abs(u),1.7)*.046*Math.sin(Math.PI*t)+ripple);
+   uvs.push(i/cols,t);
+   if(j<rows&&i<cols){const a=j*(cols+1)+i,b=a+cols+1;indices.push(a,b,a+1,b,b+1,a+1);}
+  }
+ }
+ const g=new THREE.BufferGeometry();
+ g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+ g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);g.computeVertexNormals();return g;
+}
+function lettuce(x,y,z){
+ const plant=new THREE.Group();plant.position.set(x,y,z);tower.add(plant);
+ const variation=random();
+ for(let i=0;i<10;i++){
+  const inner=i>=7;
+  const length=inner?.14+random()*.08:.20+random()*.085;
+  const width=inner?.045:.065+random()*.02;
+  const curl=inner?.025:.055+random()*.035;
+  const g=leafGeometry(length,width,curl,random()*6);
+  const leaf=new THREE.Mesh(g,leafMaterials[Math.floor(random()*leafMaterials.length)]);
+  const pivot=new THREE.Group();
+  pivot.rotation.y=i*2.399+variation*4;
+  pivot.rotation.x=inner?.15+random()*.2:.48+random()*.37;
+  pivot.add(leaf);plant.add(pivot);leaf.castShadow=true;leaf.receiveShadow=true;
+  const path=new THREE.CatmullRomCurve3([new THREE.Vector3(0,.01,.001),new THREE.Vector3(0,length*.45,curl*.2025+.002),new THREE.Vector3(0,length*.89,curl*.792+.002)]);
+  const vein=new THREE.Mesh(new THREE.TubeGeometry(path,10,.0014,4,false),veinMat);pivot.add(vein);
+ }
+ leaves.push({plant,phase:random()*Math.PI*2});
+}
+const lights=[];
+const shelfYs=[.99,1.88,2.77,3.66];
+for(const y of shelfYs){
+ box(2.64,.102,.75,black,0,y,0,.018);
+ box(2.49,.024,.65,trayMat,0,y+.063,0,.018);
+ box(2.38,.012,.56,white,0,y+.077,0,.014);
+ for(const z of [-.275,.275]){
+  box(2.39,.029,.041,steel,0,y-.064,z,.005);
+  box(2.32,.016,.027,glowMat,0,y-.084,z,.004);
+ }
+ const light=new THREE.PointLight(0xe6ffd6,.65,1.35,2);light.position.set(0,y-.16,0);tower.add(light);lights.push(light);
+ for(let i=0;i<5;i++){
+  const x=(i-2)*.475;
+  cyl(.124,.087,.164,white,x,y+.17,0);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(.122,.013,8,40),white);
+  rim.rotation.x=Math.PI/2;rim.position.set(x,y+.25,0);rim.castShadow=true;tower.add(rim);
+  cyl(.109,.109,.012,dark,x,y+.244,0);
+  for(let k=0;k<12;k++){
+   const a=k*Math.PI/6;
+   const slot=box(.013,.069,.003,blackInset,x+Math.sin(a)*.112,y+.174,Math.cos(a)*.112,.003);
+   slot.rotation.y=a;slot.rotation.x=-Math.sin(a)*.08;
+  }
+  lettuce(x,y+.25,0);
+ }
+ for(const x of [-1.24,1.24]) for(const z of [-.34,.34]){
+  const bolt=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.009,12),steel);
+  bolt.rotation.x=Math.PI/2;bolt.position.set(x,y,z+(z>0?.044:-.044));tower.add(bolt);
+ }
+}
+// A final canopy strip illuminates the uppermost growing tier.
+box(2.42,.045,.12,black,0,4.419,0,.008);
+box(2.33,.013,.076,glowMat,0,4.386,0,.004);
+const canopyLight=new THREE.PointLight(0xe6ffd6,.8,1.2,2);canopyLight.position.set(0,4.3,0);tower.add(canopyLight);lights.push(canopyLight);
+
+const pipePoints=[[1.05,.67,-.1],[1.40,.79,-.1],[1.43,1.03,-.1],[1.43,3.94,-.1],[1.38,4.24,-.1],[1.21,4.28,-.1]];
+const pipe=tube(pipePoints,.032,glassMat,90);
+tube(pipePoints,.018,waterMat,90);
+for(const y of [1.15,2.32,3.53]){
+ box(.16,.035,.077,black,1.36,y,-.1,.007);
+ const clip=new THREE.Mesh(new THREE.TorusGeometry(.037,.005,8,20),steel);
+ clip.position.set(1.43,y,-.1);clip.rotation.x=Math.PI/2;tower.add(clip);
+}
+for(const y of shelfYs){
+ tube([[1.42,y+.03,-.1],[1.3,y+.03,-.1],[1.18,y+.03,-.1]],.016,glassMat,12);
+}
+const droplets=[];
+const dropletGeo=new THREE.SphereGeometry(.013,8,6);
+const dropletMat=new THREE.MeshBasicMaterial({color:0xd4f3e9,transparent:true,opacity:.8});
+for(let i=0;i<14;i++){
+ const m=new THREE.Mesh(dropletGeo,dropletMat);tower.add(m);droplets.push(m);
+}
+
+box(.11,.21,.31,black,1.35,2.33,.18,.012);
+const controlBox=box(.38,.43,.155,white,1.43,2.34,.41,.035);
+box(.303,.18,.008,blackInset,1.43,2.407,.491,.014);
+const displayCanvas=document.createElement('canvas');displayCanvas.width=384;displayCanvas.height=192;
+const dc=displayCanvas.getContext('2d');
+const displayTexture=new THREE.CanvasTexture(displayCanvas);displayTexture.colorSpace=THREE.SRGBColorSpace;
+const displayMat=new THREE.MeshBasicMaterial({map:displayTexture});
+const display=new THREE.Mesh(new THREE.PlaneGeometry(.267,.137),displayMat);display.position.set(1.43,2.407,.497);tower.add(display);
+function updateDisplay(on=true,water=true){
+ dc.fillStyle='#172a25';dc.fillRect(0,0,384,192);
+ dc.fillStyle='#8bba9b';dc.font='18px monospace';dc.fillText('VERDE / GROW SYSTEM',20,30);
+ dc.font='50px monospace';dc.fillStyle='#d8efcf';dc.fillText('21.4°',20,95);
+ dc.font='18px monospace';dc.fillStyle='#93b89c';dc.fillText('pH 6.2   '+(water?'FLOW OK':'PAUSED'),20,133);
+ dc.fillStyle=on?'#94b774':'#566e63';dc.fillRect(20,155,on?285:35,5);
+ displayTexture.needsUpdate=true;
+}
+updateDisplay();
+const statusMat=new THREE.MeshStandardMaterial({color:0x90bc66,emissive:0x6a9c42,emissiveIntensity:1});
+for(let i=0;i<3;i++){
+ const led=new THREE.Mesh(new THREE.SphereGeometry(.012,12,8),i===0?statusMat:new THREE.MeshStandardMaterial({color:i===1?0xb8d4a8:0xc4cebf,emissive:i===1?0x719554:0x000000,emissiveIntensity:.4}));
+ led.position.set(1.355+i*.061,2.252,.492);tower.add(led);
+}
+const button=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.008,24),steel);button.rotation.x=Math.PI/2;button.position.set(1.54,2.252,.493);tower.add(button);
+box(.13,.004,.02,trayMat,1.43,2.174,.485,.001);
+tube([[1.43,2.16,.38],[1.38,2.06,.31],[1.3,1.96,.29],[1.3,.8,.29]],.012,blackInset,40);
+
+let lightsOn=true,flowOn=true,resetting=false;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.getElementById('rotate').addEventListener('click',function(){
+ controls.autoRotate=!controls.autoRotate;this.classList.toggle('active',controls.autoRotate);this.setAttribute('aria-pressed',controls.autoRotate);resetting=false;
+});
+document.getElementById('lights').addEventListener('click',function(){
+ lightsOn=!lightsOn;this.classList.toggle('active',lightsOn);this.setAttribute('aria-pressed',lightsOn);
+ document.getElementById('light-status').textContent=lightsOn?'ON':'OFF';updateDisplay(lightsOn,flowOn);
+});
+document.getElementById('flow').addEventListener('click',function(){
+ flowOn=!flowOn;this.classList.toggle('active',flowOn);this.setAttribute('aria-pressed',flowOn);
+ document.getElementById('flow-label').textContent=flowOn?'Cycle active':'Cycle paused';
+ document.getElementById('flow-status').textContent=flowOn?'Optimal':'Standby';updateDisplay(lightsOn,flowOn);
+});
+document.getElementById('reset').addEventListener('click',()=>{
+ resetting=true;controls.autoRotate=false;document.getElementById('rotate').classList.remove('active');document.getElementById('rotate').setAttribute('aria-pressed','false');
+});
+controls.addEventListener('start',()=>{resetting=false;});
+const raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
+let pointerStart=null;
+stage.addEventListener('pointerdown',e=>{pointerStart=[e.clientX,e.clientY];});
+stage.addEventListener('pointerup',e=>{
+ if(!pointerStart||Math.hypot(e.clientX-pointerStart[0],e.clientY-pointerStart[1])>6)return;
+ mouse.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);raycaster.setFromCamera(mouse,camera);
+ if(raycaster.intersectObject(controlBox).length){
+  const p=document.getElementById('panel');
+  if(innerWidth<=700)p.classList.toggle('panel-mobile-hide');
+  else {p.style.opacity=p.style.opacity==='0'?'1':'0';p.style.pointerEvents=p.style.opacity==='0'?'none':'auto';}
+ }
+});
+
+function resize(){
+ camera.aspect=innerWidth/innerHeight;
+ camera.fov=innerWidth<700?44:34;
+ // Maintain room for the complete appliance at narrow aspect ratios.
+ if(innerWidth<700){
+  const distance=Math.max(10.8,6.1/camera.aspect);
+  startPosition.set(.52*distance,.34*distance,.78*distance);
+ }else startPosition.set(6.2,4.5,9.2);
+ camera.position.copy(startPosition);camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+}
+window.addEventListener('resize',resize);resize();
+let time=0,last=0,lightLevel=1;
+function animate(ms){
+ requestAnimationFrame(animate);
+ const dt=Math.min((ms-last)/1000,.05);last=ms;
+ if(!document.hidden){
+  if(flowOn&&!reduced)time+=dt;
+  lightLevel=THREE.MathUtils.damp(lightLevel,lightsOn?1:0,5,dt);
+  glowMat.emissiveIntensity=lightLevel*1.8;
+  glowMat.color.setRGB(.72+lightLevel*.2,.8+lightLevel*.17,.66+lightLevel*.15);
+  lights.forEach((l,i)=>l.intensity=lightLevel*(i===4?.8:.65));
+  droplets.forEach((d,i)=>{d.visible=flowOn;d.position.copy(pipe.curve.getPointAt((i/14+time*.12)%1));});
+  if(!reduced)leaves.forEach(({plant,phase})=>{plant.rotation.z=Math.sin(ms*.0007+phase)*.012;plant.rotation.x=Math.cos(ms*.00055+phase)*.007;});
+  if(resetting){
+   camera.position.lerp(startPosition,1-Math.exp(-dt*5));
+   controls.target.lerp(new THREE.Vector3(0,2.13,0),1-Math.exp(-dt*5));
+   if(camera.position.distanceTo(startPosition)<.01)resetting=false;
+  }
+  controls.update();renderer.render(scene,camera);
+ }
+}
+requestAnimationFrame(animate);
+renderer.render(scene,camera);
+document.getElementById('loading').classList.add('hidden');
+</script>
+</body>
+</html>
