@@ -1,0 +1,14 @@
+{
+  "name": "Project Verde — Technical System Compendium",
+  "short_name": "Verde",
+  "description": "Autonomous, cloud-integrated regenerative ecosystem for high-tech vertical farming. Chlorophyll meets silicon.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#22c55e",
+  "orientation": "portrait-primary",
+  "categories": ["technology", "science", "education"],
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64 32x32 24x24 16x16", "type": "image/x-icon" }
+  ]
+}

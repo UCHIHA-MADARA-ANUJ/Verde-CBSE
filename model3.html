@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ESP8266 NodeMCU — Interactive 3D Product Viewer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 800px at 50% 30%,#eceef1 0%,#d1d5da 55%,#b9bfc7 100%);color:#1a1f26}
+#scene-container{position:fixed;inset:0;z-index:0}
+#scene-container canvas{display:block;cursor:grab}
+#scene-container canvas:active{cursor:grabbing}
+.vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.16) 100%)}
+.glass{background:rgba(255,255,255,.74);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.85);box-shadow:0 12px 32px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.9);border-radius:16px}
+.header{position:fixed;top:18px;left:18px;z-index:10;display:flex;gap:14px;align-items:flex-start;padding:14px 18px 14px 14px;max-width:400px;animation:fadeUp .8s ease both}
+.logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#062d12 0%,#0a5a24 45%,#1aa64f 100%);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0;box-shadow:0 6px 16px rgba(10,90,36,.35);border:1px solid rgba(255,255,255,.3)}
+.header h1{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.header h1 span{color:#0a7a2e}
+.header p{font-size:11.5px;color:#5c6572;margin-top:5px;font-weight:500;letter-spacing:.2px}
+.chips{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.chip{font-size:10px;font-weight:800;padding:4px 9px;border-radius:20px;background:rgba(10,77,30,.08);border:1px solid rgba(10,77,30,.18);color:#0a4d1e;letter-spacing:.3px}
+#inspector{position:fixed;top:18px;right:18px;z-index:10;width:284px;padding:18px;animation:fadeUp .8s .1s ease both}
+.insp-label{font-size:10px;font-weight:800;letter-spacing:2px;color:#8a93a0}
+#inspector h2{font-size:18px;margin:7px 0 6px;letter-spacing:-.3px;line-height:1.2}
+#inspector p{font-size:13px;line-height:1.55;color:#3f4753}
+.insp-stats{display:flex;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid rgba(0,0,0,.08)}
+.insp-stats div{flex:1;text-align:center;background:rgba(0,0,0,.03);border-radius:10px;padding:8px 4px}
+.insp-stats strong{display:block;font-size:15px}
+.insp-stats span{font-size:10px;color:#6b7480;font-weight:700;letter-spacing:.4px}
+.insp-hint{margin-top:12px;background:linear-gradient(135deg,#fff8d6,#ffedb8);border:1px solid #e6d48a;border-radius:10px;padding:8px 10px;font-size:12px;color:#6a5a1a}
+#insp-action{margin-top:8px;font-size:12px;font-weight:700;color:#0a7a2e;min-height:16px;opacity:0;transition:opacity .3s}
+.controls{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px;padding:10px;align-items:center;animation:fadeUp .8s .2s ease both}
+.btn{display:flex;align-items:center;gap:7px;padding:10px 15px;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.75);cursor:pointer;font-weight:700;font-size:13px;color:#2a323d;transition:all .2s;white-space:nowrap}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.12);background:#fff}
+.btn:active{transform:translateY(0)}
+.btn.active{background:#0a4d1e;color:#fff;border-color:#0a4d1e;box-shadow:0 6px 16px rgba(10,77,30,.35)}
+.dot{width:8px;height:8px;border-radius:50%;background:#c2c7ce;flex-shrink:0}
+.btn.active .dot{background:#4ade80;box-shadow:0 0 8px #4ade80}
+.hint{position:fixed;bottom:20px;left:18px;z-index:10;padding:11px 15px;font-size:12px;color:#4d5663;font-weight:600;border-radius:12px}
+.credit{position:fixed;bottom:20px;right:18px;z-index:10;padding:8px 12px;font-size:11px;color:#6b7480;font-weight:600;border-radius:10px}
+#tooltip{position:fixed;z-index:30;pointer-events:none;background:rgba(8,18,12,.93);color:#fff;padding:11px 13px;border-radius:12px;max-width:264px;opacity:0;transition:opacity .15s;box-shadow:0 10px 28px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.15)}
+#tooltip strong{display:block;font-size:13px;margin-bottom:4px;color:#7cffa0}
+#tooltip span{font-size:12px;line-height:1.5;color:#d6dbe2}
+#loader{position:fixed;inset:0;z-index:100;background:#d1d5da;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .7s}
+#loader.hide{opacity:0;pointer-events:none}
+.spinner{width:52px;height:52px;border-radius:50%;border:5px solid rgba(0,0,0,.12);border-top-color:#0a4d1e;animation:spin .8s linear infinite}
+#loader p{font-weight:700;color:#3a434f;letter-spacing:.5px;font-size:14px}
+#loader small{color:#6b7480;font-size:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.controls{animation-name:fadeUpC}
+@keyframes fadeUpC{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@media(max-width:960px){#inspector,.hint,.credit{display:none}.header{max-width:calc(100vw - 36px);padding:12px}.header h1{font-size:17px}.controls{flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 20px);gap:6px}.btn{padding:9px 12px;font-size:12px}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+<div id="scene-container"></div>
+<div class="vignette"></div>
+
+<header class="header glass">
+<div class="logo">📶</div>
+<div>
+<h1>NodeMCU <span>ESP8266</span></h1>
+<p>Interactive 3D Product Render • Flat Top / Slight Angle</p>
+<div class="chips"><span class="chip">80MHz Tensilica</span><span class="chip">4MB Flash</span><span class="chip">802.11 b/g/n</span></div>
+</div>
+</header>
+
+<aside id="inspector" class="glass">
+<div class="insp-label">COMPONENT INSPECTOR</div>
+<h2 id="insp-title">NodeMCU ESP8266 v3</h2>
+<p id="insp-desc">Hover any part of the board to identify it. Dark-green PCB with ENIG gold traces, ESP-12E shield can, meander antenna, USB, headers & blue LED.</p>
+<div class="insp-stats"><div><strong>30</strong><span>PINS</span></div><div><strong>3.3V</strong><span>LOGIC</span></div><div><strong>49×26</strong><span>MM</span></div></div>
+<div class="insp-hint">💡 Click FLASH / RST buttons to physically press them.</div>
+<div id="insp-action"></div>
+</aside>
+
+<div class="controls glass">
+<button id="btn-rotate" class="btn active"><span class="dot"></span>⟳ Rotate</button>
+<button id="btn-led" class="btn active"><span class="dot"></span>💡 LED</button>
+<button id="btn-wifi" class="btn active"><span class="dot"></span>📶 WiFi</button>
+<button id="btn-explode" class="btn"><span class="dot"></span>💥 Exploded</button>
+<button id="btn-top" class="btn">⬒ Top</button>
+<button id="btn-reset" class="btn">📷 Reset</button>
+</div>
+
+<div class="hint glass">🖱️ Drag to orbit • Scroll to zoom • Right-drag to pan • Hover parts</div>
+<div class="credit glass">Three.js • WebGL • PBR</div>
+<div id="tooltip"></div>
+<div id="loader"><div class="spinner"></div><p>Rendering NodeMCU PCB...</p><small>building traces • shield • antenna • headers</small></div>
+
+<script>
+var scene,camera,renderer,controls,clock,raycaster,pointer;
+var boardGroup,moduleBaseGroup,shieldGroup,usbGroup,flashBtnGroup,rstBtnGroup,ledGroup,wifiGroup;
+var leftPlastic,rightPlastic,leftPinsTop,rightPinsTop,leftPinsBot,rightPinsBot;
+var ch340Group,regGroup,xtalGroup,miscGroup;
+var ledMesh,ledLight,ledGlow,hoverHelper,hoverBox3,hoveredRoot=null;
+var explodeParts=[];
+var autoRotate=true,ledEnabled=true,wifiEnabled=true;
+var explodeTarget=0,explodeCurrent=0;
+var pressFlash=0,pressRst=0,flashBoostUntil=-10;
+var cameraTween=null,introActive=true,introT=0;
+var tooltipX=0,tooltipY=0;
+var tooltip=document.getElementById('tooltip');
+var introFromPos=new THREE.Vector3(11.5,9.5,13.5);
+var introToPos=new THREE.Vector3(4.4,5.1,5.8);
+var introFromTgt=new THREE.Vector3(0,1.2,0);
+var introToTgt=new THREE.Vector3(0,0,0.25);
+var defaultPos=new THREE.Vector3(4.4,5.1,5.8);
+var defaultTgt=new THREE.Vector3(0,0,0.25);
+var topPos=new THREE.Vector3(0,9.6,0.35);
+var topTgt=new THREE.Vector3(0,0,0.15);
+var goldMat,copperMat,blackPlasticMat,silverMat,darkChipMat,pinSilverMat;
+
+function easeOutCubic(t){return 1-Math.pow(1-t,3);}
+function easeInOut(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+function registerExplode(obj,arr){explodeParts.push({obj:obj,base:obj.position.clone(),offset:new THREE.Vector3(arr[0],arr[1],arr[2])});}
+
+function createPCBTopTexture(){
+var W=1024,H=2048;
+var c=document.createElement('canvas');c.width=W;c.height=H;
+var g=c.getContext('2d');
+var grad=g.createLinearGradient(0,0,W,H);
+grad.addColorStop(0,'#10602a');grad.addColorStop(.4,'#0d5223');grad.addColorStop(1,'#093d1a');
+g.fillStyle=grad;g.fillRect(0,0,W,H);
+for(var i=0;i<12000;i++){g.fillStyle=Math.random()>.5?'rgba(255,255,255,0.045)':'rgba(0,0,0,0.055)';g.fillRect(Math.random()*W,Math.random()*H,2,1);}
+g.globalAlpha=.05;for(var y=0;y<H;y+=4){g.fillStyle=y%8?'#000':'#fff';g.fillRect(0,y,W,1);}g.globalAlpha=1;
+g.strokeStyle='rgba(0,0,0,0.5)';g.lineWidth=30;g.strokeRect(0,0,W,H);
+g.strokeStyle='#02150a';g.lineWidth=8;g.strokeRect(8,8,W-16,H-16);
+function goldTrace(pts,w){w=w||10;g.lineCap='round';g.lineJoin='round';
+g.strokeStyle='#8a6d1c';g.lineWidth=w+4;g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(var k=1;k<pts.length;k++)g.lineTo(pts[k][0],pts[k][1]);g.stroke();
+g.strokeStyle='#d9b84a';g.lineWidth=w;g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(var k2=1;k2<pts.length;k2++)g.lineTo(pts[k2][0],pts[k2][1]);g.stroke();
+g.strokeStyle='#f2dd9a';g.lineWidth=Math.max(2,w*.3);g.beginPath();g.moveTo(pts[0][0],pts[0][1]-w*.15);for(var k3=1;k3<pts.length;k3++)g.lineTo(pts[k3][0],pts[k3][1]-w*.15);g.stroke();}
+function via(x,y,r){r=r||14;g.fillStyle='#e3c565';g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();g.fillStyle='#0a2a14';g.beginPath();g.arc(x,y,r*.45,0,Math.PI*2);g.fill();g.strokeStyle='#7a5f14';g.lineWidth=2;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.stroke();}
+var leftX=120,rightX=W-120;
+for(var ti=0;ti<10;ti++){var yy=650+ti*90;
+goldTrace([[512,yy-120],[380,yy-120],[300,yy],[leftX+60,yy]],9);
+goldTrace([[512,yy-100],[644,yy-100],[724,yy],[rightX-60,yy]],9);}
+goldTrace([[420,1250],[420,1450],[350,1520],[350,1620]],10);
+goldTrace([[604,1250],[604,1450],[674,1520],[674,1620]],10);
+goldTrace([[512,1300],[512,1500]],12);
+goldTrace([[300,900],[250,1100],[250,1500],[350,1600]],8);
+goldTrace([[724,900],[774,1100],[774,1500],[674,1600]],8);
+goldTrace([[470,1700],[470,1850],[480,1900]],8);
+goldTrace([[554,1700],[554,1850],[544,1900]],8);
+goldTrace([[120,1750],[300,1750],[350,1650]],14);
+goldTrace([[904,1750],[724,1750],[674,1650]],14);
+for(var vi=0;vi<26;vi++){via(200+Math.random()*624,500+Math.random()*1200,10+Math.random()*6);}
+via(300,1650,16);via(724,1650,16);
+function headerPad(px,py){g.fillStyle='#e8c86a';g.fillRect(px-32,py-20,64,40);g.fillStyle='#c9a227';g.fillRect(px-32,py-20,64,8);g.fillStyle='#0a0a0a';g.beginPath();g.arc(px,py,14,0,Math.PI*2);g.fill();g.strokeStyle='#7a5f14';g.lineWidth=3;g.strokeRect(px-32,py-20,64,40);}
+var padTop=480,padBot=1820,padN=15;
+var leftLabels=["A0","RSV","RSV","SD3","SD2","SD1","CMD","SD0","CLK","GND","3V3","EN","RST","GND","VIN"];
+var rightLabels=["D0","D1","D2","D3","D4","3V3","GND","D5","D6","D7","D8","RX","TX","GND","3V3"];
+for(var pi=0;pi<padN;pi++){var pyy=padTop+(padBot-padTop)*pi/(padN-1);headerPad(110,pyy);headerPad(W-110,pyy);}
+g.fillStyle='#f5f5f5';g.strokeStyle='#f5f5f5';g.globalAlpha=.95;g.lineWidth=4;g.strokeRect(28,28,W-56,H-56);
+g.lineWidth=3;g.setLineDash([18,12]);g.strokeRect(200,90,624,1030);g.setLineDash([]);
+g.setLineDash([12,8]);g.strokeRect(200,40,624,320);g.setLineDash([]);
+g.textAlign='center';g.font='bold 34px Arial';g.fillText('ANT. KEEPOUT',512,78);
+g.font='bold 26px Consolas,monospace';
+for(var li=0;li<padN;li++){var lyy=padTop+(padBot-padTop)*li/(padN-1);g.textAlign='left';g.fillText(leftLabels[li],170,lyy+9);g.textAlign='right';g.fillText(rightLabels[li],W-170,lyy+9);}
+g.textAlign='center';g.font='bold 78px Arial';g.fillText('NodeMCU',512,1720);
+g.font='bold 46px Arial';g.fillText('ESP8266  v3',512,1776);
+g.font='28px Arial';g.fillText('LOLIN  \u2022  WiFi DEV BOARD',512,1810);
+g.font='bold 30px Arial';g.fillText('FLASH',340,1500);g.fillText('RST',684,1500);
+g.font='24px Arial';g.fillText('CH340G',512,1362);g.fillText('D4 LED',700,1220);g.fillText('AI-THINKER ESP-12E',512,1170);
+g.lineWidth=4;g.strokeRect(372,1890,280,120);
+g.font='22px Arial';g.fillText('USB',512,1960);
+g.lineWidth=5;g.beginPath();g.arc(512,1880,22,Math.PI*1.25,Math.PI*1.75);g.stroke();
+g.beginPath();g.arc(512,1880,42,Math.PI*1.25,Math.PI*1.75);g.stroke();
+g.fillStyle='#f5f5f5';g.beginPath();g.arc(512,1880,6,0,Math.PI*2);g.fill();
+g.lineWidth=2;g.strokeRect(432,1280,160,120);g.strokeRect(260,1530,120,120);g.strokeRect(644,1530,120,120);
+g.font='22px Arial';g.textAlign='left';g.fillText('RoHS  CE  FCC',50,2010);
+g.textAlign='right';g.fillText('4M FLASH  80MHz',W-50,2010);
+g.globalAlpha=1;
+var tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;return tex;
+}
+function createShieldTexture(){
+var S=512;var c=document.createElement('canvas');c.width=S;c.height=S;var g=c.getContext('2d');
+var grad=g.createLinearGradient(0,0,S,S);grad.addColorStop(0,'#e8ebef');grad.addColorStop(.5,'#c2c6cc');grad.addColorStop(1,'#98-9ea6'.replace('-',''));grad.addColorStop(1,'#9aa0a8');
+g.fillStyle=grad;g.fillRect(0,0,S,S);
+g.globalAlpha=.08;for(var i=0;i<S;i+=2){g.fillStyle=i%4?'#fff':'#000';g.fillRect(0,i,S,1);}g.globalAlpha=1;
+g.strokeStyle='#7a7f87';g.lineWidth=10;g.strokeRect(5,5,S-10,S-10);
+g.fillStyle='#4a4e55';g.textAlign='center';
+g.font='bold 52px Arial';g.fillText('AI-THINKER',S/2,148);
+g.font='bold 44px Arial';g.fillText('ESP8266MOD',S/2,208);
+g.font='28px Consolas,monospace';g.fillText('ISM 2.4GHz',S/2,260);g.fillText('PA +25dBm',S/2,295);
+g.font='22px Arial';g.fillText('FCC \u2022 CE \u2022 RoHS',S/2,360);
+g.strokeStyle='#4a4e55';g.lineWidth=6;
+g.beginPath();g.arc(S/2,424,20,Math.PI*1.25,Math.PI*1.75);g.stroke();
+g.beginPath();g.arc(S/2,424,36,Math.PI*1.25,Math.PI*1.75);g.stroke();
+g.fillStyle='#4a4e55';g.beginPath();g.arc(S/2,424,6,0,Math.PI*2);g.fill();
+g.fillStyle='rgba(0,0,0,0.22)';g.beginPath();g.arc(60,60,18,0,Math.PI*2);g.fill();g.beginPath();g.arc(S-60,60,18,0,Math.PI*2);g.fill();
+var tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;return tex;
+}
+function createGlowTexture(){
+var S=128;var c=document.createElement('canvas');c.width=S;c.height=S;var g=c.getContext('2d');
+var gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+gr.addColorStop(0,'rgba(160,200,255,1)');gr.addColorStop(.25,'rgba(60,120,255,0.85)');gr.addColorStop(.6,'rgba(30,60,255,0.25)');gr.addColorStop(1,'rgba(0,0,255,0)');
+g.fillStyle=gr;g.fillRect(0,0,S,S);return new THREE.CanvasTexture(c);
+}
+function createGroundTexture(){
+var S=512;var c=document.createElement('canvas');c.width=S;c.height=S;var g=c.getContext('2d');
+var gr=g.createRadialGradient(S/2,S/2,40,S/2,S/2,S/2);
+gr.addColorStop(0,'#c4c9d0');gr.addColorStop(.55,'#ccd1d7');gr.addColorStop(1,'#d1d5da');
+g.fillStyle=gr;g.fillRect(0,0,S,S);var t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;
+}
+
+function init(){
+clock=new THREE.Clock();
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0xd1d5da);
+scene.fog=new THREE.Fog(0xd1d5da,20,48);
+camera=new THREE.PerspectiveCamera(38,window.innerWidth/window.innerHeight,0.1,100);
+camera.position.copy(introFromPos);
+renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.08;
+document.getElementById('scene-container').appendChild(renderer.domElement);
+controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=0.06;
+controls.minDistance=3.2;controls.maxDistance=18;
+controls.maxPolarAngle=1.45;controls.target.copy(introFromTgt);
+controls.autoRotate=true;controls.autoRotateSpeed=0.9;
+controls.enabled=false;
+raycaster=new THREE.Raycaster();pointer=new THREE.Vector2();
+goldMat=new THREE.MeshStandardMaterial({color:0xd4af37,metalness:1,roughness:0.28});
+copperMat=new THREE.MeshStandardMaterial({color:0xc27a2e,metalness:1,roughness:0.32});
+blackPlasticMat=new THREE.MeshStandardMaterial({color:0x0c0c0f,roughness:0.55,metalness:0.1});
+silverMat=new THREE.MeshStandardMaterial({color:0xc9ced4,metalness:0.95,roughness:0.24});
+darkChipMat=new THREE.MeshStandardMaterial({color:0x111114,roughness:0.42,metalness:0.2});
+pinSilverMat=new THREE.MeshStandardMaterial({color:0xc0c4c8,metalness:0.9,roughness:0.3});
+createLights();createGround();createBoard();createWifi();
+hoverBox3=new THREE.Box3();
+hoverHelper=new THREE.Box3Helper(hoverBox3,0x00aaff);
+hoverHelper.material.transparent=true;hoverHelper.material.opacity=0.9;hoverHelper.visible=false;
+scene.add(hoverHelper);
+boardGroup.traverse(function(o){if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+window.addEventListener('resize',onResize);
+renderer.domElement.addEventListener('pointermove',onPointerMove);
+renderer.domElement.addEventListener('click',onClick);
+document.getElementById('btn-rotate').addEventListener('click',function(){autoRotate=!autoRotate;controls.autoRotate=autoRotate;this.classList.toggle('active',autoRotate);});
+document.getElementById('btn-led').addEventListener('click',function(){ledEnabled=!ledEnabled;this.classList.toggle('active',ledEnabled);});
+document.getElementById('btn-wifi').addEventListener('click',function(){wifiEnabled=!wifiEnabled;this.classList.toggle('active',wifiEnabled);});
+document.getElementById('btn-explode').addEventListener('click',function(){explodeTarget=explodeTarget?0:1;this.classList.toggle('active',!!explodeTarget);pulseInspector(explodeTarget?'Exploded view ON':'Exploded view OFF');});
+document.getElementById('btn-reset').addEventListener('click',function(){startCameraTween(defaultPos,defaultTgt);});
+document.getElementById('btn-top').addEventListener('click',function(){startCameraTween(topPos,topTgt);});
+window.addEventListener('keydown',function(e){var k=e.key.toLowerCase();if(k==='r')document.getElementById('btn-rotate').click();if(k==='l')document.getElementById('btn-led').click();if(k==='w')document.getElementById('btn-wifi').click();if(k==='e')document.getElementById('btn-explode').click();});
+animate();
+setTimeout(function(){document.getElementById('loader').classList.add('hide');},600);
+}
+function createLights(){
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f98,0.85));
+scene.add(new THREE.AmbientLight(0xffffff,0.25));
+var key=new THREE.DirectionalLight(0xffffff,1.15);
+key.position.set(5,10,5);key.castShadow=true;
+key.shadow.mapSize.width=2048;key.shadow.mapSize.height=2048;
+key.shadow.camera.left=-7;key.shadow.camera.right=7;key.shadow.camera.top=7;key.shadow.camera.bottom=-7;
+key.shadow.camera.near=1;key.shadow.camera.far=30;key.shadow.bias=-0.0004;
+scene.add(key);
+var fill=new THREE.DirectionalLight(0xdfe8ff,0.45);fill.position.set(-6,6,-4);scene.add(fill);
+var rim=new THREE.DirectionalLight(0xffffff,0.32);rim.position.set(0,4,-7);scene.add(rim);
+var front=new THREE.DirectionalLight(0xfff5e0,0.25);front.position.set(0,3,8);scene.add(front);
+}
+function createGround(){
+var tex=createGroundTexture();
+var mat=new THREE.MeshStandardMaterial({map:tex,roughness:0.95,metalness:0});
+var m=new THREE.Mesh(new THREE.PlaneGeometry(70,70),mat);
+m.rotation.x=-Math.PI/2;m.position.y=-0.8;m.receiveShadow=true;scene.add(m);
+}
+function createBoard(){
+boardGroup=new THREE.Group();scene.add(boardGroup);
+var PCB_W=3.0,PCB_L=5.8,PCB_T=0.09,topY=PCB_T/2;
+var pcbTopTex=createPCBTopTexture();
+var pcbTopMat=new THREE.MeshStandardMaterial({map:pcbTopTex,roughness:0.38,metalness:0.15});
+var pcbSideMat=new THREE.MeshStandardMaterial({color:0x0a3d1a,roughness:0.6,metalness:0.1});
+var pcbBotMat=new THREE.MeshStandardMaterial({color:0x0a4d1e,roughness:0.5,metalness:0.1});
+var pcb=new THREE.Mesh(new THREE.BoxGeometry(PCB_W,PCB_T,PCB_L),[pcbSideMat,pcbSideMat,pcbTopMat,pcbBotMat,pcbSideMat,pcbSideMat]);
+pcb.userData={title:'PCB — Dark Green FR4',desc:'2-layer board with gold-plated (ENIG) traces, white silkscreen, 30 plated header holes and antenna keepout.'};
+boardGroup.add(pcb);
+moduleBaseGroup=new THREE.Group();
+moduleBaseGroup.userData={title:'ESP-12E Module Substrate',desc:'Daughter PCB carrying ESP8266EX, 4MB flash and RF front-end. Soldered to base via castellated pads.'};
+boardGroup.add(moduleBaseGroup);
+var modW=1.7,modL=2.9,modT=0.05;
+var modMesh=new THREE.Mesh(new THREE.BoxGeometry(modW,modT,modL),new THREE.MeshStandardMaterial({color:0x0c3320,roughness:0.45,metalness:0.2}));
+modMesh.position.set(0,topY+modT/2+0.002,-1.05);moduleBaseGroup.add(modMesh);
+for(var mi=0;mi<8;mi++){var zz=-1.9+mi*0.32;
+var pl=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.02,0.18),goldMat);pl.position.set(-0.85,topY+0.01,zz);moduleBaseGroup.add(pl);
+var pr=pl.clone();pr.position.x=0.85;moduleBaseGroup.add(pr);}
+var antGroup=new THREE.Group();
+antGroup.userData={title:'Zigzag Copper PCB Antenna',desc:'Meandered inverted-F 2.4GHz antenna. Copper trace with no ground beneath — radiates WiFi. Watch the waves!'};
+var feed=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.015,0.45),copperMat);feed.position.set(0.3,topY+modT+0.008,-1.72);antGroup.add(feed);
+var segW=1.12,startZ=-1.95;
+for(var ai=0;ai<5;ai++){var azz=startZ-ai*0.15;
+var hz=new THREE.Mesh(new THREE.BoxGeometry(segW,0.015,0.095),copperMat);hz.position.set(0,topY+modT+0.008,azz);antGroup.add(hz);
+if(ai<4){var sx=(ai%2===0)?segW/2:-segW/2;var vz=new THREE.Mesh(new THREE.BoxGeometry(0.095,0.015,0.155),copperMat);vz.position.set(sx,topY+modT+0.008,azz-0.075);antGroup.add(vz);}}
+var tip=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.015,0.2),copperMat);tip.position.set(-0.35,topY+modT+0.008,-2.6);antGroup.add(tip);
+moduleBaseGroup.add(antGroup);
+shieldGroup=new THREE.Group();
+shieldGroup.userData={title:'Silver RF Shielding Can',desc:'Metal can over ESP8266EX + flash. Laser-etched AI-THINKER ESP8266MOD. Blocks EMI, keeps WiFi clean.'};
+boardGroup.add(shieldGroup);
+var shW=1.7,shL=1.9,shH=0.32;
+var shieldTopMat=new THREE.MeshStandardMaterial({map:createShieldTexture(),metalness:0.85,roughness:0.32});
+var shieldSideMat=new THREE.MeshStandardMaterial({color:0xc2c6cc,metalness:0.95,roughness:0.26});
+var shieldMesh=new THREE.Mesh(new THREE.BoxGeometry(shW,shH,shL),[shieldSideMat,shieldSideMat,shieldTopMat,shieldSideMat,shieldSideMat,shieldSideMat]);
+shieldMesh.position.set(0,topY+modT+shH/2,-0.6);shieldGroup.add(shieldMesh);
+for(var fi=0;fi<4;fi++){var fx=(fi%2?0.7:-0.7),fz=(fi<2?0.15:-1.35);var foot=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.06,0.18),pinSilverMat);foot.position.set(fx,topY+modT+0.03,fz);shieldGroup.add(foot);}
+leftPlastic=new THREE.Group();leftPlastic.userData={title:'Pin Header — Left ×15',desc:'Black 2.54mm plastic strip with gold square pins: A0, SD3/SD2/SD1, CMD, CLK, 3V3, EN, RST, VIN.'};boardGroup.add(leftPlastic);
+rightPlastic=new THREE.Group();rightPlastic.userData={title:'Pin Header — Right ×15',desc:'Black 2.54mm plastic strip with gold pins: D0–D8, RX/TX, 3V3, GND. Compatible with breadboards.'};boardGroup.add(rightPlastic);
+leftPinsTop=new THREE.Group();leftPinsTop.userData={title:'Gold Pins — Top (Left)',desc:'Gold-plated square male pins, top side. Low contact resistance for Dupont / breadboard use.'};boardGroup.add(leftPinsTop);
+rightPinsTop=new THREE.Group();rightPinsTop.userData={title:'Gold Pins — Top (Right)',desc:'Gold-plated square male pins, top side. 15 per edge, 2.54mm pitch.'};boardGroup.add(rightPinsTop);
+leftPinsBot=new THREE.Group();leftPinsBot.userData={title:'Gold Pins — Bottom (Left)',desc:'Through-hole tails visible from side / back. Soldered into ENIG plated holes.'};boardGroup.add(leftPinsBot);
+rightPinsBot=new THREE.Group();rightPinsBot.userData={title:'Gold Pins — Bottom (Right)',desc:'Through-hole tails visible from side / back. Board rests on these when flat.'};boardGroup.add(rightPinsBot);
+var plasticGeo=new THREE.BoxGeometry(0.28,0.22,4.8);
+var lp=new THREE.Mesh(plasticGeo,blackPlasticMat);lp.position.set(-1.28,topY+0.11,0.3);leftPlastic.add(lp);
+var rp=new THREE.Mesh(plasticGeo,blackPlasticMat);rp.position.set(1.28,topY+0.11,0.3);rightPlastic.add(rp);
+var pinTopGeo=new THREE.BoxGeometry(0.08,0.36,0.08);
+var pinBotGeo=new THREE.BoxGeometry(0.08,0.32,0.08);
+for(var pi2=0;pi2<15;pi2++){var pz=0.3-2.2+pi2*(4.4/14);
+var a=new THREE.Mesh(pinTopGeo,goldMat);a.position.set(-1.28,topY+0.3,pz);leftPinsTop.add(a);
+var b=new THREE.Mesh(pinTopGeo,goldMat);b.position.set(1.28,topY+0.3,pz);rightPinsTop.add(b);
+var c2=new THREE.Mesh(pinBotGeo,goldMat);c2.position.set(-1.28,-0.045-0.14,pz);leftPinsBot.add(c2);
+var d=new THREE.Mesh(pinBotGeo,goldMat);d.position.set(1.28,-0.045-0.14,pz);rightPinsBot.add(d);
+var h1=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.02,0.16),new THREE.MeshStandardMaterial({color:0x000000,roughness:0.9}));h1.position.set(-1.28,topY+0.225,pz);leftPlastic.add(h1);
+var h2=h1.clone();h2.position.x=1.28;rightPlastic.add(h2);}
+usbGroup=new THREE.Group();usbGroup.userData={title:'Micro-USB Port',desc:'5V power + CH340 UART. Silver shell with black tongue. Powers board and flashes firmware.'};boardGroup.add(usbGroup);
+var shell=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.32,0.6),silverMat);shell.position.set(0,topY+0.16,2.62);usbGroup.add(shell);
+var opening=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.06),new THREE.MeshStandardMaterial({color:0x050505,roughness:0.85}));opening.position.set(0,topY+0.14,2.92);usbGroup.add(opening);
+var tongue=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.06,0.36),new THREE.MeshStandardMaterial({color:0x151515,roughness:0.6}));tongue.position.set(0,topY+0.08,2.78);usbGroup.add(tongue);
+for(var ui=-1;ui<=1;ui+=2){var hole=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.012,0.18),new THREE.MeshStandardMaterial({color:0x2a2e33,roughness:0.7}));hole.position.set(ui*0.2,topY+0.325,2.62);usbGroup.add(hole);}
+for(var mt=0;mt<4;mt++){var mx=(mt%2?0.5:-0.5),mz=(mt<2?2.4:2.84);var tab=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.08,0.14),silverMat);tab.position.set(mx,topY+0.04,mz);usbGroup.add(tab);}
+flashBtnGroup=new THREE.Group();flashBtnGroup.userData={title:'FLASH Button (GPIO0)',desc:'Tactile push button. Hold at boot to enter UART flash mode. CLICK TO PRESS — watch the LED!'};boardGroup.add(flashBtnGroup);
+var fb=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.12,0.36),blackPlasticMat);fb.position.set(-0.56,topY+0.06,1.6);flashBtnGroup.add(fb);
+var ft=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.08,20),silverMat);ft.position.set(-0.56,topY+0.16,1.6);flashBtnGroup.add(ft);
+var fc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.05,16),blackPlasticMat);fc.position.set(-0.56,topY+0.22,1.6);flashBtnGroup.add(fc);
+rstBtnGroup=new THREE.Group();rstBtnGroup.userData={title:'RST Button (Reset)',desc:'Tactile reset button. Pulls EN low to reboot ESP8266. CLICK TO PRESS — watch the LED!'};boardGroup.add(rstBtnGroup);
+var rb=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.12,0.36),blackPlasticMat);rb.position.set(0.56,topY+0.06,1.6);rstBtnGroup.add(rb);
+var rt=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.08,20),silverMat);rt.position.set(0.56,topY+0.16,1.6);rstBtnGroup.add(rt);
+var rc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.05,16),blackPlasticMat);rc.position.set(0.56,topY+0.22,1.6);rstBtnGroup.add(rc);
+ledGroup=new THREE.Group();ledGroup.userData={title:'Tiny Blue SMD LED (D4 / GPIO2)',desc:'0402 blue LED with WiFi-activity blink. Ultra-bright — toggle it below!'};boardGroup.add(ledGroup);
+for(var ldx=-1;ldx<=1;ldx+=2){var lpad=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.02,0.14),goldMat);lpad.position.set(0.65+ldx*0.12,topY+0.01,0.75);ledGroup.add(lpad);}
+ledMesh=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.08,0.12),new THREE.MeshStandardMaterial({color:0x0a1aff,emissive:0x2255ff,emissiveIntensity:2,roughness:0.3,metalness:0.1}));
+ledMesh.position.set(0.65,topY+0.05,0.75);ledGroup.add(ledMesh);
+ledLight=new THREE.PointLight(0x3366ff,0.8,3,2);ledLight.position.set(0.65,0.45,0.75);ledGroup.add(ledLight);
+ledGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:createGlowTexture(),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0.9}));
+ledGlow.scale.set(0.9,0.9,1);ledGlow.position.set(0.65,0.2,0.75);ledGroup.add(ledGlow);
+ch340Group=new THREE.Group();ch340Group.userData={title:'CH340G USB-Serial Chip',desc:'USB to UART bridge for programming + Serial Monitor. 12MHz crystal clocked.'};boardGroup.add(ch340Group);
+var chip=new THREE.Mesh(new THREE.BoxGeometry(0.65,0.12,0.65),darkChipMat);chip.position.set(0,topY+0.06,0.9);ch340Group.add(chip);
+var dot=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.012,12),new THREE.MeshStandardMaterial({color:0x555555}));dot.position.set(-0.2,topY+0.125,0.68);ch340Group.add(dot);
+for(var ci=0;ci<8;ci++){var cz=0.9-0.28+ci*(0.56/7);
+var plp=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.04,0.06),pinSilverMat);plp.position.set(-0.38,topY+0.02,cz);ch340Group.add(plp);
+var prp=plp.clone();prp.position.x=0.38;ch340Group.add(prp);}
+regGroup=new THREE.Group();regGroup.userData={title:'AMS1117 3.3V Regulator',desc:'LDO drops USB 5V to 3.3V for ESP8266. Silver tab is heatsink / GND.'};boardGroup.add(regGroup);
+var regB=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.15,0.35),darkChipMat);regB.position.set(-0.85,topY+0.075,0.9);regGroup.add(regB);
+var regT=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.05,0.25),pinSilverMat);regT.position.set(-0.85,topY+0.025,0.55);regGroup.add(regT);
+xtalGroup=new THREE.Group();xtalGroup.userData={title:'12MHz Crystal',desc:'Silver HC-49S crystal for CH340 USB timing. ±30ppm stability.'};boardGroup.add(xtalGroup);
+var xt=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.1,0.28),new THREE.MeshStandardMaterial({color:0xd4d8de,metalness:1,roughness:0.2}));xt.position.set(0.78,topY+0.05,1.25);xtalGroup.add(xt);
+miscGroup=new THREE.Group();miscGroup.userData={title:'Passives — Caps & Resistors',desc:'0603/0805 ceramics, tantalums + pull-ups for EN, GPIO0/2/15 boot strapping.'};boardGroup.add(miscGroup);
+var capMat=new THREE.MeshStandardMaterial({color:0xc8a882,roughness:0.5});
+var resMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.5});
+var tantMat=new THREE.MeshStandardMaterial({color:0xcc7722,roughness:0.4});
+var spots=[[-0.4,0.3,'cap'],[0.35,0.3,'res'],[-0.9,1.95,'cap'],[0.95,1.95,'res'],[-0.3,1.15,'res'],[0.3,1.15,'cap'],[0,0.35,'cap'],[-0.65,0.5,'res'],[0.95,0.55,'cap'],[-0.4,1.95,'res']];
+for(var si=0;si<spots.length;si++){var sx2=spots[si][0],sz2=spots[si][1],ty=spots[si][2];
+for(var ppp=-1;ppp<=1;ppp+=2){var pp=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.02,0.08),goldMat);pp.position.set(sx2+ppp*0.1,topY+0.01,sz2);miscGroup.add(pp);}
+var bm;
+if(ty==='cap')bm=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.1),capMat);
+else bm=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.06,0.07),resMat);
+bm.position.set(sx2,topY+0.05,sz2);miscGroup.add(bm);}
+var tant=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.1,0.15),tantMat);tant.position.set(-0.85,topY+0.05,1.35);miscGroup.add(tant);
+var sot1=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.08,0.12),darkChipMat);sot1.position.set(-0.35,topY+0.04,2.15);miscGroup.add(sot1);
+var sot2=sot1.clone();sot2.position.set(0.35,topY+0.04,2.15);miscGroup.add(sot2);
+registerExplode(moduleBaseGroup,[0,0.45,0]);
+registerExplode(shieldGroup,[0,1.35,0]);
+registerExplode(leftPlastic,[-0.7,0.35,0]);registerExplode(rightPlastic,[0.7,0.35,0]);
+registerExplode(leftPinsTop,[-0.7,1.2,0]);registerExplode(rightPinsTop,[0.7,1.2,0]);
+registerExplode(leftPinsBot,[-0.7,-0.15,0]);registerExplode(rightPinsBot,[0.7,-0.15,0]);
+registerExplode(usbGroup,[0,0.35,0.9]);
+registerExplode(flashBtnGroup,[0,0.9,0]);registerExplode(rstBtnGroup,[0,0.9,0]);
+registerExplode(ledGroup,[0,0.7,0]);
+registerExplode(ch340Group,[0,0.6,0]);registerExplode(regGroup,[0,0.65,0]);
+registerExplode(xtalGroup,[0,0.6,0]);registerExplode(miscGroup,[0,0.55,0]);
+}
+function createWifi(){
+wifiGroup=new THREE.Group();wifiGroup.position.set(0,0.18,-2.35);
+var rings=[];
+for(var i=0;i<3;i++){var geo=new THREE.RingGeometry(0.45,0.5,48);
+var mat=new THREE.MeshBasicMaterial({color:0x00c8ff,transparent:true,opacity:0.6-i*0.15,side:THREE.DoubleSide,depthWrite:false});
+var m=new THREE.Mesh(geo,mat);m.rotation.x=-Math.PI/2;m.position.y=i*0.05;wifiGroup.add(m);rings.push(m);}
+wifiGroup.userData={rings:rings,title:'WiFi Radiation',desc:'2.4GHz waves from meander antenna.'};
+moduleBaseGroup.add(wifiGroup);
+}
+function refreshHoverBox(){
+if(!hoveredRoot)return;
+var wv=wifiGroup.visible,gv=ledGlow.visible;
+wifiGroup.visible=false;ledGlow.visible=false;
+try{hoverBox3.setFromObject(hoveredRoot);}catch(e){}
+wifiGroup.visible=wv;ledGlow.visible=gv;
+}
+function onPointerMove(e){
+var rect=renderer.domElement.getBoundingClientRect();
+pointer.x=((e.clientX-rect.left)/rect.width)*2-1;
+pointer.y=-((e.clientY-rect.top)/rect.height)*2+1;
+tooltipX=e.clientX;tooltipY=e.clientY;
+raycaster.setFromCamera(pointer,camera);
+var hits=raycaster.intersectObjects(boardGroup.children,true);
+var root=null;
+for(var i=0;i<hits.length;i++){var o=hits[i].object;
+if(o.isSprite)continue;
+if(o.parent===wifiGroup)continue;
+var t=o;while(t&&!t.userData.title)t=t.parent;
+if(t&&t!==wifiGroup){root=t;break;}}
+if(root!==hoveredRoot){hoveredRoot=root;
+if(root){document.body.style.cursor='pointer';refreshHoverBox();hoverHelper.visible=true;
+tooltip.innerHTML='<strong>'+root.userData.title+'</strong><span>'+root.userData.desc+'</span>';tooltip.style.opacity='1';
+document.getElementById('insp-title').textContent=root.userData.title;
+document.getElementById('insp-desc').textContent=root.userData.desc;
+}else{document.body.style.cursor='grab';hoverHelper.visible=false;tooltip.style.opacity='0';
+document.getElementById('insp-title').textContent='NodeMCU ESP8266 v3';
+document.getElementById('insp-desc').textContent='Hover any part of the board to identify it. Dark-green PCB with ENIG gold traces, ESP-12E shield can, meander antenna, USB, headers & blue LED.';}}
+if(hoveredRoot){var lx=tooltipX+16,ly=tooltipY+16;
+if(lx+280>window.innerWidth)lx=tooltipX-280;
+if(ly+120>window.innerHeight)ly=tooltipY-120;
+tooltip.style.left=lx+'px';tooltip.style.top=ly+'px';}
+}
+function onClick(){
+if(!hoveredRoot)return;
+var t=clock.getElapsedTime();
+if(hoveredRoot===flashBtnGroup){pressFlash=1;flashBoostUntil=t+0.9;pulseInspector('FLASH pressed — GPIO0 LOW, ready to flash');}
+else if(hoveredRoot===rstBtnGroup){pressRst=1;flashBoostUntil=t+0.9;pulseInspector('RESET pressed — rebooting ESP8266...');}
+}
+function pulseInspector(msg){var el=document.getElementById('insp-action');if(!el)return;el.textContent=msg;el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(function(){el.style.opacity='0';},2200);}
+function startCameraTween(toP,toT){introActive=false;cameraTween={t:0,dur:1.1,fromP:camera.position.clone(),toP:toP.clone(),fromT:controls.target.clone(),toT:toT.clone()};controls.enabled=true;}
+function onResize(){camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);}
+function animate(){
+requestAnimationFrame(animate);
+var delta=Math.min(clock.getDelta(),0.05);
+var t=clock.getElapsedTime();
+if(introActive){introT+=delta/2.2;var k=easeOutCubic(Math.min(introT,1));
+camera.position.lerpVectors(introFromPos,introToPos,k);
+controls.target.lerpVectors(introFromTgt,introToTgt,k);
+if(introT>=1){introActive=false;controls.enabled=true;}}
+else if(cameraTween){cameraTween.t+=delta/cameraTween.dur;var k2=easeInOut(Math.min(cameraTween.t,1));
+camera.position.lerpVectors(cameraTween.fromP,cameraTween.toP,k2);
+controls.target.lerpVectors(cameraTween.fromT,cameraTween.toT,k2);
+if(cameraTween.t>=1)cameraTween=null;}
+controls.update();
+explodeCurrent+=(explodeTarget-explodeCurrent)*Math.min(1,delta*4);
+for(var i=0;i<explodeParts.length;i++){var p=explodeParts[i];p.obj.position.copy(p.base).addScaledVector(p.offset,explodeCurrent);}
+if(pressFlash>0)pressFlash=Math.max(0,pressFlash-delta*2.6);
+if(pressRst>0)pressRst=Math.max(0,pressRst-delta*2.6);
+if(flashBtnGroup&&pressFlash>0)flashBtnGroup.position.y+=-0.07*Math.sin((1-pressFlash)*Math.PI);
+if(rstBtnGroup&&pressRst>0)rstBtnGroup.position.y+=-0.07*Math.sin((1-pressRst)*Math.PI);
+if(ledMesh){var bright=0.08;
+if(ledEnabled){var cyc=t%1.6;var blink=(cyc<0.12||(cyc>0.28&&cyc<0.4))?1:0.12;bright=blink;if(t<flashBoostUntil)bright=1;bright*=1.7+Math.sin(t*28)*0.12;}
+else{if(t<flashBoostUntil)bright=1.4;else bright=0.04;}
+ledMesh.material.emissiveIntensity=0.2+bright*2.6;
+ledLight.intensity=bright*1.3;
+ledGlow.material.opacity=0.12+bright*0.62;
+var s=0.7+bright*0.5;ledGlow.scale.set(s,s,1);}
+if(wifiGroup){wifiGroup.visible=wifiEnabled;
+if(wifiEnabled){var rings=wifiGroup.userData.rings;
+for(var r=0;r<rings.length;r++){var ph=(t*0.55+r/rings.length)%1;var sc=0.4+ph*2.9;rings[r].scale.set(sc,sc,sc);rings[r].material.opacity=(1-ph)*0.65;rings[r].position.y=0.05+ph*0.65;}}}
+if(hoveredRoot&&hoverHelper.visible)refreshHoverBox();
+renderer.render(scene,camera);
+}
+init();
+</script>
+</body>
+</html>
