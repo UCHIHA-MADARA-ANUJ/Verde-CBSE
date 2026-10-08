@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import CommandPalette from "../CommandPalette";
 
 const links = [
+  { href: "#loop", label: "Loop" },
   { href: "#tour", label: "Tour" },
+  { href: "#console", label: "Console" },
   { href: "#telemetry", label: "Telemetry" },
   { href: "#hardware", label: "Hardware" },
   { href: "#specs", label: "Specs" },

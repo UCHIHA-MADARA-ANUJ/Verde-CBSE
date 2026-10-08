@@ -1,12 +1,15 @@
 import ScenePreloader, { SceneSlot } from "./components/ScenePreloader";
 import SmoothScroll from "./components/SmoothScroll";
 import ScrollProgress from "./components/ScrollProgress";
-import Hero from "./components/Hero";
-import StatsStrip from "./components/StatsStrip";
-import Pillars from "./components/Pillars";
-import Manifesto from "./components/Manifesto";
 import CustomCursor from "./components/CustomCursor";
+import Hero from "./components/Hero";
+import Manifesto from "./components/Manifesto";
+import StatsStrip from "./components/StatsStrip";
+import MegaMarquee from "./components/MegaMarquee";
+import Pillars from "./components/Pillars";
+import HorizontalDeck from "./components/HorizontalDeck";
 import TowerStory from "./components/TowerStory";
+import LiveTerminal from "./components/LiveTerminal";
 import Telemetry from "./components/Telemetry";
 import SensingSection from "./components/SensingSection";
 import BoardSection from "./components/BoardSection";
@@ -30,13 +33,34 @@ export default function Home() {
 
       <main id="main" className="relative z-10">
         <Hero />
+
+        <MegaMarquee
+          items={["AUTONOMOUS", "SEALED LOOP", "ON-DEVICE AI", "ZERO SOIL"]}
+          duration={38}
+        />
+
         <Manifesto />
         <StatsStrip />
         <Pillars />
+
+        <MegaMarquee
+          items={["95% LESS WATER", "20 SITES", "4 TIERS", "1 FOOTPRINT"]}
+          reverse
+          duration={46}
+        />
+
+        <HorizontalDeck />
         <TowerStory />
+        <LiveTerminal />
         <Telemetry />
         <SensingSection />
         <BoardSection />
+
+        <MegaMarquee
+          items={["ESP8266", "TENSORFLOW LITE", "FIREBASE", "RS485 NPK", "KICAD PCB"]}
+          duration={34}
+        />
+
         <SpecExplorer />
         <Timeline />
         <Faq />

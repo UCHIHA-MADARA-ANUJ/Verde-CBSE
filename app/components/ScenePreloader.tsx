@@ -1,5 +1,7 @@
 "use client";
 
+import BootCurtain from "./BootCurtain";
+
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 /* -------------------------------------------------------------------------
@@ -55,7 +57,7 @@ export default function ScenePreloader({ children }: { children: React.ReactNode
     };
     window.addEventListener("message", onMsg);
     // never trap the user behind a stalled frame
-    const bail = setTimeout(() => setReady(true), 12000);
+    const bail = setTimeout(() => setReady(true), 11000);
     return () => {
       window.removeEventListener("message", onMsg);
       clearTimeout(bail);
@@ -65,13 +67,20 @@ export default function ScenePreloader({ children }: { children: React.ReactNode
   const count = Object.values(loaded).filter(Boolean).length;
   const progress = Math.round((count / SCENES.length) * 100);
 
+  // the boot sequence is part of the product; never flash it away in 200ms
+  const [minElapsed, setMinElapsed] = useState(false);
   useEffect(() => {
-    if (count === SCENES.length) setReady(true);
-  }, [count]);
+    const t = setTimeout(() => setMinElapsed(true), 2600);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (count === SCENES.length && minElapsed) setReady(true);
+  }, [count, minElapsed]);
 
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => setLifted(true), 620);
+    const t = setTimeout(() => setLifted(true), 1800);
     return () => clearTimeout(t);
   }, [ready]);
 
@@ -165,40 +174,8 @@ export default function ScenePreloader({ children }: { children: React.ReactNode
 
       {children}
 
-      {/* curtain */}
-      {!lifted && (
-        <div
-          className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-[var(--bg)] transition-opacity duration-[600ms]"
-          style={{ opacity: ready ? 0 : 1 }}
-        >
-          <div className="flex items-center gap-3 mb-8">
-            <svg viewBox="0 0 26 30" fill="none" className="w-[22px] h-[26px] accent">
-              <path
-                d="M13 27V12M13 18C4 18 2 11 3 4c7 0 11 5 10 14ZM13 23c0-9 4-15 11-15 1 9-3 15-11 15Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-            <span
-              className="text-[15px] font-extrabold tracking-[0.42em]"
-              style={{ fontFamily: "var(--display)" }}
-            >
-              VERDE
-            </span>
-          </div>
+      {!lifted && <BootCurtain progress={progress} ready={ready} />}
 
-          <div className="w-[190px] h-px bg-[var(--line)] overflow-hidden">
-            <div
-              className="h-full bg-[var(--green)] transition-[width] duration-700 ease-out"
-              style={{ width: `${Math.max(progress, 8)}%` }}
-            />
-          </div>
-
-          <div className="eyebrow mt-5">
-            Cultivating your view · {String(progress).padStart(3, "0")}%
-          </div>
-        </div>
-      )}
     </SceneCtx.Provider>
   );
 }
