@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import NeuralField from "./NeuralField";
+import ScrambleText from "./ScrambleText";
 import Magnetic from "./Magnetic";
 
 function useTicker(fn: () => string, ms = 1000) {
@@ -35,6 +36,7 @@ export default function Hero() {
 
   return (
     <section
+      id="top"
       ref={ref}
       className="relative h-[100svh] flex items-center justify-center overflow-hidden"
     >
@@ -109,6 +111,67 @@ export default function Hero() {
             </a>
           </Magnetic>
         </motion.div>
+      </motion.div>
+
+      {/* vertical side labels */}
+      <div className="hidden lg:block absolute left-9 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+        <div
+          className="hud-read whitespace-nowrap"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          EST. 2025 — DELHI, IN
+        </div>
+      </div>
+      <div className="hidden lg:block absolute right-9 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+        <div
+          className="hud-read whitespace-nowrap c-grow"
+          style={{ writingMode: "vertical-rl" }}
+        >
+          CLOSED LOOP HYDROPONICS
+        </div>
+      </div>
+
+      {/* floating telemetry cards */}
+      <motion.div
+        style={{ opacity }}
+        className="hidden md:flex absolute bottom-[12vh] inset-x-0 justify-center gap-px z-20 pointer-events-none"
+      >
+        {[
+          ["WATER", "21.4°C"],
+          ["pH", "6.21"],
+          ["RESERVOIR", "82%"],
+          ["CANOPY", "0.94"],
+        ].map(([k, v], i) => (
+          <motion.div
+            key={k}
+            initial={{ opacity: 0, y: 26 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 1.5 + i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-black/70 backdrop-blur-sm border border-white/10 px-6 py-3 text-center"
+          >
+            <div className="mono text-[9px] tracking-[0.28em] text-white/30 mb-1">{k}</div>
+            <div className="mono text-[13px] c-grow">{v}</div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* scroll cue */}
+      <motion.div
+        style={{ opacity }}
+        className="absolute bottom-7 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none"
+      >
+        <ScrambleText
+          text="SCROLL"
+          trigger="mount"
+          className="hud-read"
+        />
+        <div className="w-px h-10 bg-white/15 overflow-hidden">
+          <motion.div
+            animate={{ y: ["-100%", "100%"] }}
+            transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full h-1/2 bg-[var(--grow)]"
+          />
+        </div>
       </motion.div>
     </section>
   );

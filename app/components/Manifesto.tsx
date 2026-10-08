@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import Magnetic from "./Magnetic";
+import TextReveal from "./TextReveal";
 
 const LINES = ["SOIL IS", "RUNNING", "OUT."];
 
@@ -11,6 +12,7 @@ export default function Manifesto() {
 
   return (
     <section
+      id="manifesto"
       ref={ref}
       className="py-32 md:py-48 relative z-10 border-t border-white/10 bg-[var(--void)]"
     >
@@ -39,16 +41,9 @@ export default function Manifesto() {
           </h2>
 
           <div className="flex flex-col justify-center lg:border-l border-white/10 lg:pl-12">
-            <motion.p
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-              className="text-[22px] md:text-[30px] leading-[1.45] text-white/90 mono mb-10"
-            >
-              Arable land shrinks. Water tables fall. Yet a third of what we grow never
-              reaches a plate.
-            </motion.p>
+            <TextReveal className="text-[22px] md:text-[30px] leading-[1.45] text-white/90 mono mb-10">
+              Arable land shrinks. Water tables fall. Yet a third of what we grow never reaches a plate.
+            </TextReveal>
             <motion.p
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}

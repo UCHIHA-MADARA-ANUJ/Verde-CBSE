@@ -5,7 +5,9 @@ import CustomCursor from "./components/CustomCursor";
 import Hero from "./components/Hero";
 import Manifesto from "./components/Manifesto";
 import StatsStrip from "./components/StatsStrip";
-import MegaMarquee from "./components/MegaMarquee";
+import VelocityMarquee from "./components/VelocityMarquee";
+import SideRail from "./components/SideRail";
+import Comparison from "./components/Comparison";
 import Pillars from "./components/Pillars";
 import HorizontalDeck from "./components/HorizontalDeck";
 import TowerStory from "./components/TowerStory";
@@ -27,6 +29,7 @@ export default function Home() {
       <SmoothScroll />
       <ScrollProgress />
       <CustomCursor />
+      <SideRail />
       <div className="bg-noise" />
       <div className="scanline-fx" />
       <Nav />
@@ -34,31 +37,31 @@ export default function Home() {
       <main id="main" className="relative z-10">
         <Hero />
 
-        <MegaMarquee
+        <VelocityMarquee
           items={["AUTONOMOUS", "SEALED LOOP", "ON-DEVICE AI", "ZERO SOIL"]}
-          duration={38}
+          baseVelocity={2.2}
         />
 
         <Manifesto />
         <StatsStrip />
         <Pillars />
 
-        <MegaMarquee
+        <VelocityMarquee
           items={["95% LESS WATER", "20 SITES", "4 TIERS", "1 FOOTPRINT"]}
-          reverse
-          duration={46}
+          baseVelocity={-1.8}
         />
 
         <HorizontalDeck />
         <TowerStory />
         <LiveTerminal />
         <Telemetry />
+        <Comparison />
         <SensingSection />
         <BoardSection />
 
-        <MegaMarquee
+        <VelocityMarquee
           items={["ESP8266", "TENSORFLOW LITE", "FIREBASE", "RS485 NPK", "KICAD PCB"]}
-          duration={34}
+          baseVelocity={2.8}
         />
 
         <SpecExplorer />
